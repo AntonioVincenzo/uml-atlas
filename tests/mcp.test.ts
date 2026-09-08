@@ -1,0 +1,22 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { Store } from '../src/server/store';
+import { exampleDocument } from '../src/core/example';
+test('real stdio MCP client can discover, read, propose, inspect, and observe UI acceptance', { timeout: 20000 }, async t => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'atlas-mcp-')); t.after(() => rm(root, { recursive: true, force: true })); const store = new Store(root); const initial = await store.init(exampleDocument);
+  const client = new Client({ name: 'atlas-integration-test', version: '1.0.0' }); const transport = new StdioClientTransport({ command: process.execPath, args: ['--import', 'tsx', path.resolve('src/server/cli.ts'), 'mcp', '--workspace', root], stderr: 'pipe' }); await client.connect(transport); t.after(() => client.close());
+  const tools = await client.listTools(); assert.ok(tools.tools.some(t => t.name === 'propose_diagram')); assert.ok(!tools.tools.some(t => t.name.includes('accept')));
+  const call = async (name: string, args: Record<string, unknown> = {}) => { const result = await client.callTool({ name, arguments: args }); if (result.isError) throw new Error(JSON.stringify(result.content)); return JSON.parse((result.content as any)[0].text); };
+  const current = await call('get_architecture'); assert.equal(current.revision, initial.revision);
+  const diagram = await call('get_diagram', { diagramId: 'overview' }); assert.match(diagram.uml, /@startuml overview/);
+  const proposed = await call('propose_diagram', { diagramId: 'overview', uml: diagram.uml.replace('"Designer"', '"System architect"'), baseRevision: current.revision, author: 'Test agent', rationale: 'Clarify who reviews architecture' });
+  assert.equal(proposed.changes[0].fields[0], 'label'); assert.equal((await call('get_architecture')).revision, current.revision); const inspected = await call('get_proposal', { proposalId: proposed.proposal.id }); assert.equal(inspected.changes.length, 1);
+  await store.review(proposed.proposal.id, 'accept'); const updated = await call('get_architecture'); assert.equal(updated.document.diagrams[0].nodes[0].label, 'System architect'); assert.equal((await call('get_history')).length, 2);
+  const stale = await client.callTool({ name: 'propose_architecture', arguments: { document: current.document, baseRevision: current.revision, author: 'Agent', rationale: 'Stale change' } }); assert.equal(stale.isError, true);
+  const schema = await client.readResource({ uri: 'atlas://schema' }); assert.ok(JSON.parse((schema.contents[0] as any).text).properties.diagrams);
+});

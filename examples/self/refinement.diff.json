@@ -1,0 +1,469 @@
+[
+  {
+    "diagramId": "model_core",
+    "entity": "node",
+    "id": "document",
+    "label": "Architecture document",
+    "kind": "modified",
+    "fields": [
+      "description",
+      "members"
+    ],
+    "before": {
+      "id": "document",
+      "kind": "class",
+      "label": "Architecture document",
+      "position": {
+        "x": 340,
+        "y": 160
+      },
+      "description": "Versioned, language-agnostic graph model.",
+      "stereotype": "",
+      "members": [
+        "+schemaVersion: 1",
+        "+diagrams: Diagram[]",
+        "+nodes: Node[]",
+        "+edges: Relationship[]",
+        "+imports: DiagramReference[]"
+      ],
+      "codeLinks": [
+        {
+          "path": "src/core/model.ts",
+          "startLine": 1
+        }
+      ],
+      "snippet": {
+        "language": "pseudocode",
+        "code": "candidate = apply(current.document, edits)\nvalidate(candidate)\nchanges = diff(current.document, candidate)\npropose(current.revision, candidate, rationale)"
+      }
+    },
+    "after": {
+      "id": "document",
+      "kind": "class",
+      "label": "Architecture document",
+      "position": {
+        "x": 340,
+        "y": 160
+      },
+      "description": "Portable project document. Each document contains one or more reusable diagrams.",
+      "stereotype": "",
+      "members": [
+        "+schemaVersion: 1",
+        "+id: string",
+        "+name: string",
+        "+diagrams: Diagram[]"
+      ],
+      "codeLinks": [
+        {
+          "path": "src/core/model.ts",
+          "startLine": 1
+        }
+      ],
+      "snippet": {
+        "language": "pseudocode",
+        "code": "candidate = apply(current.document, edits)\nvalidate(candidate)\nchanges = diff(current.document, candidate)\npropose(current.revision, candidate, rationale)"
+      }
+    }
+  },
+  {
+    "diagramId": "model_core",
+    "entity": "node",
+    "id": "diff",
+    "label": "Structural diff",
+    "kind": "layout",
+    "fields": [
+      "position"
+    ],
+    "before": {
+      "id": "diff",
+      "kind": "component",
+      "label": "Structural diff",
+      "position": {
+        "x": 680,
+        "y": 160
+      },
+      "description": "Compares stable IDs and separates layout-only edits from design changes.",
+      "stereotype": "",
+      "members": [],
+      "codeLinks": [
+        {
+          "path": "src/core/diff.ts",
+          "startLine": 1
+        }
+      ]
+    },
+    "after": {
+      "id": "diff",
+      "kind": "component",
+      "label": "Structural diff",
+      "position": {
+        "x": 700,
+        "y": 420
+      },
+      "description": "Compares stable IDs and separates layout-only edits from design changes.",
+      "stereotype": "",
+      "members": [],
+      "codeLinks": [
+        {
+          "path": "src/core/diff.ts",
+          "startLine": 1
+        }
+      ]
+    }
+  },
+  {
+    "diagramId": "model_core",
+    "entity": "node",
+    "id": "diagram",
+    "label": "Diagram",
+    "kind": "added",
+    "fields": [],
+    "after": {
+      "id": "diagram",
+      "kind": "class",
+      "label": "Diagram",
+      "position": {
+        "x": 700,
+        "y": 90
+      },
+      "description": "A named graph owns nodes, relationships and references to other diagrams.",
+      "stereotype": "",
+      "members": [
+        "+id: string",
+        "+name: string",
+        "+nodes: Node[]",
+        "+edges: Relationship[]",
+        "+imports: DiagramReference[]"
+      ],
+      "codeLinks": [
+        {
+          "path": "src/core/model.ts",
+          "startLine": 16,
+          "endLine": 18
+        }
+      ]
+    }
+  },
+  {
+    "diagramId": "model_core",
+    "entity": "edge",
+    "id": "contains_diagrams",
+    "label": "contains",
+    "kind": "added",
+    "fields": [],
+    "after": {
+      "id": "contains_diagrams",
+      "source": "document",
+      "target": "diagram",
+      "kind": "composition",
+      "label": "contains",
+      "sourceMultiplicity": "1",
+      "targetMultiplicity": "1..*"
+    }
+  },
+  {
+    "diagramId": "overview",
+    "entity": "import",
+    "id": "core",
+    "label": "Shared model core",
+    "kind": "modified",
+    "fields": [
+      "referencedContent"
+    ],
+    "before": {
+      "reference": {
+        "id": "core",
+        "diagramId": "model_core",
+        "label": "Shared model core",
+        "position": {
+          "x": 700,
+          "y": 180
+        },
+        "expanded": false
+      },
+      "diagram": {
+        "id": "model_core",
+        "name": "Shared model core",
+        "description": "The same validation, UML conversion, and structural diff logic is used by the browser and MCP server.",
+        "nodes": [
+          {
+            "id": "document",
+            "kind": "class",
+            "label": "Architecture document",
+            "position": {
+              "x": 340,
+              "y": 160
+            },
+            "description": "Versioned, language-agnostic graph model.",
+            "stereotype": "",
+            "members": [
+              "+schemaVersion: 1",
+              "+diagrams: Diagram[]",
+              "+nodes: Node[]",
+              "+edges: Relationship[]",
+              "+imports: DiagramReference[]"
+            ],
+            "codeLinks": [
+              {
+                "path": "src/core/model.ts",
+                "startLine": 1
+              }
+            ],
+            "snippet": {
+              "language": "pseudocode",
+              "code": "candidate = apply(current.document, edits)\nvalidate(candidate)\nchanges = diff(current.document, candidate)\npropose(current.revision, candidate, rationale)"
+            }
+          },
+          {
+            "id": "uml",
+            "kind": "component",
+            "label": "UML codec",
+            "position": {
+              "x": 20,
+              "y": 30
+            },
+            "description": "Converts the supported PlantUML-style subset to and from JSON without losing IDs or metadata.",
+            "stereotype": "",
+            "members": [],
+            "codeLinks": [
+              {
+                "path": "src/core/uml.ts",
+                "startLine": 1
+              }
+            ]
+          },
+          {
+            "id": "validation",
+            "kind": "component",
+            "label": "Validation",
+            "position": {
+              "x": 20,
+              "y": 280
+            },
+            "description": "Checks IDs, endpoints, import cycles and inheritance cycles.",
+            "stereotype": "",
+            "members": [],
+            "codeLinks": [
+              {
+                "path": "src/core/model.ts",
+                "startLine": 1
+              }
+            ]
+          },
+          {
+            "id": "diff",
+            "kind": "component",
+            "label": "Structural diff",
+            "position": {
+              "x": 680,
+              "y": 160
+            },
+            "description": "Compares stable IDs and separates layout-only edits from design changes.",
+            "stereotype": "",
+            "members": [],
+            "codeLinks": [
+              {
+                "path": "src/core/diff.ts",
+                "startLine": 1
+              }
+            ]
+          }
+        ],
+        "edges": [
+          {
+            "id": "parse",
+            "source": "uml",
+            "target": "document",
+            "kind": "dependency",
+            "label": "parse / serialize",
+            "sourceMultiplicity": "",
+            "targetMultiplicity": ""
+          },
+          {
+            "id": "validates",
+            "source": "validation",
+            "target": "document",
+            "kind": "dependency",
+            "label": "enforces invariants",
+            "sourceMultiplicity": "",
+            "targetMultiplicity": ""
+          },
+          {
+            "id": "compares",
+            "source": "diff",
+            "target": "document",
+            "kind": "dependency",
+            "label": "before / after",
+            "sourceMultiplicity": "",
+            "targetMultiplicity": ""
+          }
+        ],
+        "imports": []
+      }
+    },
+    "after": {
+      "reference": {
+        "id": "core",
+        "diagramId": "model_core",
+        "label": "Shared model core",
+        "position": {
+          "x": 700,
+          "y": 180
+        },
+        "expanded": false
+      },
+      "diagram": {
+        "id": "model_core",
+        "name": "Shared model core",
+        "description": "The same validation, UML conversion, and structural diff logic is used by the browser and MCP server.",
+        "nodes": [
+          {
+            "id": "document",
+            "kind": "class",
+            "label": "Architecture document",
+            "position": {
+              "x": 340,
+              "y": 160
+            },
+            "description": "Portable project document. Each document contains one or more reusable diagrams.",
+            "stereotype": "",
+            "members": [
+              "+schemaVersion: 1",
+              "+id: string",
+              "+name: string",
+              "+diagrams: Diagram[]"
+            ],
+            "codeLinks": [
+              {
+                "path": "src/core/model.ts",
+                "startLine": 1
+              }
+            ],
+            "snippet": {
+              "language": "pseudocode",
+              "code": "candidate = apply(current.document, edits)\nvalidate(candidate)\nchanges = diff(current.document, candidate)\npropose(current.revision, candidate, rationale)"
+            }
+          },
+          {
+            "id": "uml",
+            "kind": "component",
+            "label": "UML codec",
+            "position": {
+              "x": 20,
+              "y": 30
+            },
+            "description": "Converts the supported PlantUML-style subset to and from JSON without losing IDs or metadata.",
+            "stereotype": "",
+            "members": [],
+            "codeLinks": [
+              {
+                "path": "src/core/uml.ts",
+                "startLine": 1
+              }
+            ]
+          },
+          {
+            "id": "validation",
+            "kind": "component",
+            "label": "Validation",
+            "position": {
+              "x": 20,
+              "y": 280
+            },
+            "description": "Checks IDs, endpoints, import cycles and inheritance cycles.",
+            "stereotype": "",
+            "members": [],
+            "codeLinks": [
+              {
+                "path": "src/core/model.ts",
+                "startLine": 1
+              }
+            ]
+          },
+          {
+            "id": "diff",
+            "kind": "component",
+            "label": "Structural diff",
+            "position": {
+              "x": 700,
+              "y": 420
+            },
+            "description": "Compares stable IDs and separates layout-only edits from design changes.",
+            "stereotype": "",
+            "members": [],
+            "codeLinks": [
+              {
+                "path": "src/core/diff.ts",
+                "startLine": 1
+              }
+            ]
+          },
+          {
+            "id": "diagram",
+            "kind": "class",
+            "label": "Diagram",
+            "position": {
+              "x": 700,
+              "y": 90
+            },
+            "description": "A named graph owns nodes, relationships and references to other diagrams.",
+            "stereotype": "",
+            "members": [
+              "+id: string",
+              "+name: string",
+              "+nodes: Node[]",
+              "+edges: Relationship[]",
+              "+imports: DiagramReference[]"
+            ],
+            "codeLinks": [
+              {
+                "path": "src/core/model.ts",
+                "startLine": 16,
+                "endLine": 18
+              }
+            ]
+          }
+        ],
+        "edges": [
+          {
+            "id": "parse",
+            "source": "uml",
+            "target": "document",
+            "kind": "dependency",
+            "label": "parse / serialize",
+            "sourceMultiplicity": "",
+            "targetMultiplicity": ""
+          },
+          {
+            "id": "validates",
+            "source": "validation",
+            "target": "document",
+            "kind": "dependency",
+            "label": "enforces invariants",
+            "sourceMultiplicity": "",
+            "targetMultiplicity": ""
+          },
+          {
+            "id": "compares",
+            "source": "diff",
+            "target": "document",
+            "kind": "dependency",
+            "label": "before / after",
+            "sourceMultiplicity": "",
+            "targetMultiplicity": ""
+          },
+          {
+            "id": "contains_diagrams",
+            "source": "document",
+            "target": "diagram",
+            "kind": "composition",
+            "label": "contains",
+            "sourceMultiplicity": "1",
+            "targetMultiplicity": "1..*"
+          }
+        ],
+        "imports": []
+      }
+    }
+  }
+]

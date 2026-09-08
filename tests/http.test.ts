@@ -1,0 +1,22 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { createApp } from '../src/server/http';
+import { Store } from '../src/server/store';
+import type { AddressInfo } from 'node:net';
+import { createServer } from 'node:http';
+test('HTTP API rejects foreign origins and missing mutation headers; validates saves', async t => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'atlas-http-')); t.after(() => rm(root, { recursive: true, force: true })); const store = new Store(root); const initial = await store.init();
+  const server = createServer().listen(0, '127.0.0.1'); await new Promise<void>(r => server.once('listening', r)); t.after(() => new Promise<void>((r, reject) => server.close(e => e ? reject(e) : r()))); const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  server.on('request', createApp(store, root, (server.address() as AddressInfo).port));
+  const headers = { 'Content-Type': 'application/json' };
+  const opened = await fetch(url + '/api/workspace', { headers }); assert.equal(opened.status, 200); const config = (await opened.json()).mcpConfig.mcpServers.atlas; assert.equal(config.command, process.execPath); assert.equal(config.args[3], root);
+  assert.equal((await fetch(url + '/api/workspace', { headers: { ...headers, Origin: 'https://malicious.example' } })).status, 403);
+  assert.equal((await fetch(url + '/api/save', { method: 'POST', headers, body: '{}' })).status, 403);
+  const mutationHeaders = { ...headers, 'X-Atlas-Client': 'studio' }; const doc = structuredClone(initial.document); doc.name = 'Changed';
+  const saved = await fetch(url + '/api/save', { method: 'POST', headers: mutationHeaders, body: JSON.stringify({ document: doc, baseRevision: initial.revision, author: 'Test', rationale: 'Rename' }) }); assert.equal(saved.status, 200);
+  const stale = await fetch(url + '/api/save', { method: 'POST', headers: mutationHeaders, body: JSON.stringify({ document: doc, baseRevision: initial.revision, author: 'Test', rationale: 'Stale' }) }); assert.equal(stale.status, 409);
+  assert.equal((await fetch(url + '/api/save', { method: 'POST', headers: mutationHeaders, body: '{}' })).status, 400);
+});

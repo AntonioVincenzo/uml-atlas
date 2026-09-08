@@ -1,0 +1,39 @@
+@startuml model_core
+title "Shared model core"
+' @diagram {"description":"The same validation, UML conversion, and structural diff logic is used by the browser and MCP server."}
+
+' @node {"position":{"x":340,"y":160},"description":"Portable project document. Each document contains one or more reusable diagrams.","stereotype":"","codeLinks":[{"path":"src/core/model.ts","startLine":1}],"snippet":{"language":"pseudocode","code":"candidate = apply(current.document, edits)\nvalidate(candidate)\nchanges = diff(current.document, candidate)\npropose(current.revision, candidate, rationale)"}}
+class "Architecture document" as document {
+  +schemaVersion: 1
+  +id: string
+  +name: string
+  +diagrams: Diagram[]
+}
+
+' @node {"position":{"x":20,"y":30},"description":"Converts the supported PlantUML-style subset to and from JSON without losing IDs or metadata.","stereotype":"","codeLinks":[{"path":"src/core/uml.ts","startLine":1}]}
+component "UML codec" as uml
+
+' @node {"position":{"x":20,"y":280},"description":"Checks IDs, endpoints, import cycles and inheritance cycles.","stereotype":"","codeLinks":[{"path":"src/core/model.ts","startLine":1}]}
+component "Validation" as validation
+
+' @node {"position":{"x":700,"y":420},"description":"Compares stable IDs and separates layout-only edits from design changes.","stereotype":"","codeLinks":[{"path":"src/core/diff.ts","startLine":1}]}
+component "Structural diff" as diff
+
+' @node {"position":{"x":700,"y":90},"description":"A named graph owns nodes, relationships and references to other diagrams.","stereotype":"","codeLinks":[{"path":"src/core/model.ts","startLine":16,"endLine":18}]}
+class "Diagram" as diagram {
+  +id: string
+  +name: string
+  +nodes: Node[]
+  +edges: Relationship[]
+  +imports: DiagramReference[]
+}
+
+' @edge {"id":"parse","sourceMultiplicity":"","targetMultiplicity":""}
+uml ..> document : "parse / serialize"
+' @edge {"id":"validates","sourceMultiplicity":"","targetMultiplicity":""}
+validation ..> document : "enforces invariants"
+' @edge {"id":"compares","sourceMultiplicity":"","targetMultiplicity":""}
+diff ..> document : "before / after"
+' @edge {"id":"contains_diagrams","sourceMultiplicity":"1","targetMultiplicity":"1..*"}
+document *-- diagram : "contains"
+@enduml

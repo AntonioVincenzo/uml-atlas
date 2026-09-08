@@ -1,0 +1,30 @@
+@startuml review_flow
+title "Agent review lifecycle"
+' @diagram {"description":"A proposal records a base revision. Acceptance fails safely if the design has changed; the agent must refresh and propose again."}
+
+' @node {"position":{"x":20,"y":120},"description":"Agent receives document and revision ID.","stereotype":"","codeLinks":[]}
+state "Read current revision" as read
+
+' @node {"position":{"x":340,"y":120},"description":"Validated candidate plus author and rationale.","stereotype":"","codeLinks":[]}
+state "Propose architecture" as propose
+
+' @node {"position":{"x":660,"y":120},"description":"Human inspects added, removed and modified elements.","stereotype":"","codeLinks":[]}
+state "Review visual diff" as review
+
+' @node {"position":{"x":990,"y":20},"description":"Commit if the base revision still matches.","stereotype":"","codeLinks":[]}
+state "Accept proposal" as accept
+
+' @node {"position":{"x":990,"y":260},"description":"Keep the current architecture.","stereotype":"","codeLinks":[]}
+state "Reject proposal" as reject
+
+' @edge {"id":"reads","sourceMultiplicity":"","targetMultiplicity":""}
+read -> propose : "base revision"
+' @edge {"id":"reviews","sourceMultiplicity":"","targetMultiplicity":""}
+propose -> review : "pending"
+' @edge {"id":"accepts","sourceMultiplicity":"","targetMultiplicity":""}
+review -> accept : "accept · base matches"
+' @edge {"id":"rejects","sourceMultiplicity":"","targetMultiplicity":""}
+review -> reject : "reject"
+' @edge {"id":"stale","sourceMultiplicity":"","targetMultiplicity":""}
+accept -> read : "stale → refresh"
+@enduml

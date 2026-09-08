@@ -1,0 +1,55 @@
+{
+  "name": "atlas-architecture-studio",
+  "version": "0.1.0",
+  "description": "Local architecture modeling, UML round trips, visual diffs, and MCP agent proposals",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "start": "node dist/server/cli.js serve",
+    "mcp": "node dist/server/cli.js mcp",
+    "typecheck": "tsc --noEmit",
+    "build": "npm run typecheck && vite build && tsc -p tsconfig.server.json",
+    "test": "tsx --test tests/*.test.ts",
+    "licenses": "node scripts/licenses.mjs",
+    "prepack": "npm run build",
+    "test:package": "node scripts/verify-package.mjs",
+    "demo:proposal": "node scripts/demo-proposal.mjs",
+    "package": "npm run build && npm run licenses && node scripts/package.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "UNLICENSED",
+  "type": "module",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "@xyflow/react": "12.11.6",
+    "express": "5.2.1",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@types/express": "5.0.6",
+    "@types/node": "26.5.0",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.7",
+    "@vitejs/plugin-react": "6.1.1",
+    "tsx": "4.23.13",
+    "typescript": "7.0.2",
+    "vite": "8.2.2"
+  },
+  "private": true,
+  "bin": {
+    "atlas": "./dist/server/cli.js"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "files": [
+    "dist",
+    "docs",
+    "examples",
+    "THIRD_PARTY_NOTICES.md",
+    "LICENSES",
+    "README.md"
+  ]
+}
