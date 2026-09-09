@@ -7,12 +7,13 @@ import { createApp } from '../src/server/http';
 import { Store } from '../src/server/store';
 import type { AddressInfo } from 'node:net';
 import { createServer } from 'node:http';
+import { ProjectCatalog } from '../src/server/projects';
 test('HTTP API guards mutations, validates saves, and isolates switched projects', async t => {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'atlas-http-')); const secondRoot = await mkdtemp(path.join(os.tmpdir(), 'atlas-http-second-')); t.after(() => Promise.all([rm(root, { recursive: true, force: true }), rm(secondRoot, { recursive: true, force: true })]).then(() => {})); const store = new Store(root); const initial = await store.init();
+  const root = await mkdtemp(path.join(os.tmpdir(), 'atlas-http-')); const secondRoot = await mkdtemp(path.join(os.tmpdir(), 'atlas-http-second-')); t.after(() => Promise.all([rm(root, { recursive: true, force: true }), rm(secondRoot, { recursive: true, force: true })]).then(() => {})); const store = new Store(root); const initial = await store.init(); const catalog = new ProjectCatalog(path.join(root, '.catalog', 'projects.json'));
   const server = createServer().listen(0, '127.0.0.1'); await new Promise<void>(r => server.once('listening', r)); t.after(() => new Promise<void>((r, reject) => server.close(e => e ? reject(e) : r()))); const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-  server.on('request', createApp(store, root, (server.address() as AddressInfo).port));
+  server.on('request', createApp(store, root, (server.address() as AddressInfo).port, catalog));
   const headers = { 'Content-Type': 'application/json' };
-  const opened = await fetch(url + '/api/workspace', { headers }); assert.equal(opened.status, 200); const config = (await opened.json()).mcpConfig.mcpServers.atlas; assert.equal(config.command, process.execPath); assert.equal(config.args[3], root);
+  const opened = await fetch(url + '/api/workspace', { headers }); assert.equal(opened.status, 200); const initialWorkspace = await opened.json(); const config = initialWorkspace.mcpConfig.mcpServers.atlas; assert.equal(config.command, process.execPath); assert.equal(config.args[3], root); assert.deepEqual(initialWorkspace.projects.map((project: { path: string }) => project.path), [root]);
   assert.equal((await fetch(url + '/api/workspace', { headers: { ...headers, Origin: 'https://malicious.example' } })).status, 403);
   assert.equal((await fetch(url + '/api/save', { method: 'POST', headers, body: '{}' })).status, 403);
   const mutationHeaders = { ...headers, 'X-Atlas-Client': 'studio' }; const doc = structuredClone(initial.document); doc.name = 'Changed';
@@ -20,6 +21,7 @@ test('HTTP API guards mutations, validates saves, and isolates switched projects
   const stale = await fetch(url + '/api/save', { method: 'POST', headers: mutationHeaders, body: JSON.stringify({ document: doc, baseRevision: initial.revision, author: 'Test', rationale: 'Stale' }) }); assert.equal(stale.status, 409);
   assert.equal((await fetch(url + '/api/save', { method: 'POST', headers: mutationHeaders, body: '{}' })).status, 400);
   assert.equal((await fetch(url + '/api/workspace/open', { method: 'POST', headers: mutationHeaders, body: JSON.stringify({ path: 'relative/project' }) })).status, 400);
-  const switched = await fetch(url + '/api/workspace/open', { method: 'POST', headers: mutationHeaders, body: JSON.stringify({ path: secondRoot }) }); assert.equal(switched.status, 200); const second = await switched.json(); assert.equal(second.workspacePath, secondRoot); assert.equal(second.document.name, 'Untitled architecture');
-  const switchedBack = await fetch(url + '/api/workspace/open', { method: 'POST', headers: mutationHeaders, body: JSON.stringify({ path: root }) }); assert.equal(switchedBack.status, 200); const firstAgain = await switchedBack.json(); assert.equal(firstAgain.workspacePath, root); assert.equal(firstAgain.document.name, 'Changed');
+  const switched = await fetch(url + '/api/workspace/open', { method: 'POST', headers: mutationHeaders, body: JSON.stringify({ path: secondRoot, name: 'Second system' }) }); assert.equal(switched.status, 200); const second = await switched.json(); assert.equal(second.workspacePath, secondRoot); assert.equal(second.document.name, 'Untitled architecture'); assert.equal(second.projects.find((project: { path: string }) => project.path === secondRoot).name, 'Second system');
+  const switchedBack = await fetch(url + '/api/workspace/open', { method: 'POST', headers: mutationHeaders, body: JSON.stringify({ path: root }) }); assert.equal(switchedBack.status, 200); const firstAgain = await switchedBack.json(); assert.equal(firstAgain.workspacePath, root); assert.equal(firstAgain.document.name, 'Changed'); assert.equal(firstAgain.projects.length, 2);
+  const persistedProjects = await new ProjectCatalog(catalog.file).list(); assert.equal(persistedProjects.length, 2); assert.equal(persistedProjects.find(project => project.path === secondRoot)?.name, 'Second system');
 });

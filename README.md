@@ -34,7 +34,7 @@ Open http://127.0.0.1:5173. The development launcher starts both Vite and the lo
 node /absolute/path/to/atlas/dist/server/cli.js serve --workspace /path/to/your/project
 ```
 
-The architecture and history live inside the selected project. The architecture is independent of that project's programming language. Use **Switch project** in the top bar to open another absolute directory without restarting Atlas. Each directory has an isolated `architecture.json`, revision history, proposals, and code-link root; recent paths are stored in the browser for quick return. The MCP configuration shown by **Connect agent** follows the currently selected project.
+The architecture and history live inside the selected project. The architecture is independent of that project's programming language. Use **Switch project** in the top bar to open an onboarded project or register another absolute directory without restarting Atlas. The persistent local catalog lives at `~/.atlas/projects.json`. Each directory has an isolated `architecture.json`, revision history, proposals, and code-link root. The MCP configuration shown by **Connect agent** follows the currently selected project.
 
 A new workspace starts empty. Add `--demo` to seed a new workspace with the initial Atlas architecture; existing files are never overwritten by initialization.
 

@@ -3,9 +3,10 @@ import path from 'node:path';
 import { stat } from 'node:fs/promises';
 import { z } from 'zod';
 import { Store, ConflictError } from './store.js';
+import { ProjectCatalog } from './projects.js';
 import { documentSchema, validateDocument } from '../core/model.js';
 import { diffDocuments } from '../core/diff.js';
-export function createApp(store: Store, uiDir: string, port: number) {
+export function createApp(store: Store, uiDir: string, port: number, projectCatalog = new ProjectCatalog(path.join(store.metadata, 'projects.json'))) {
   const app = express();
   let activeStore = store;
   const stores = new Map([[path.resolve(store.root), store]]);
@@ -22,14 +23,16 @@ export function createApp(store: Store, uiDir: string, port: number) {
   app.use(express.json({ limit: '5mb' }));
   app.use('/api', (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
   const save = z.object({ document: documentSchema, baseRevision: z.string(), author: z.string().min(1).max(200), rationale: z.string().min(1).max(10000) }).strict();
-  const workspaceResponse = async () => { const active = currentStore(); return { ...await active.read(), workspacePath: active.root, mcpConfig: { mcpServers: { atlas: { command: process.execPath, args: [path.resolve(uiDir, '../server/cli.js'), 'mcp', '--workspace', active.root] } } } }; };
+  const workspaceResponse = async () => { const active = currentStore(); const revision = await active.read(); await projectCatalog.ensure(active.root, revision.document.name); return { ...revision, workspacePath: active.root, projects: await projectCatalog.list(), mcpConfig: { mcpServers: { atlas: { command: process.execPath, args: [path.resolve(uiDir, '../server/cli.js'), 'mcp', '--workspace', active.root] } } } }; };
   app.get('/api/workspace', async (_req, res) => { res.json(await workspaceResponse()); });
   app.post('/api/workspace/open', async (req, res) => {
-    const requested = z.object({ path: z.string().trim().min(1).max(4096).refine(value => path.isAbsolute(value), 'Project directory must be an absolute path') }).strict().parse(req.body).path;
+    const request = z.object({ path: z.string().trim().min(1).max(4096).refine(value => path.isAbsolute(value), 'Project directory must be an absolute path'), name: z.string().trim().min(1).max(200).optional() }).strict().parse(req.body);
+    const requested = request.path;
     const metadata = await stat(requested);
     if (!metadata.isDirectory()) throw new Error('A project workspace must be a directory');
     let next = stores.get(requested);
     if (!next) { next = new Store(requested); await next.init(); stores.set(requested, next); }
+    const revision = await next.read(); await projectCatalog.open(requested, revision.document.name, request.name);
     activeStore = next;
     res.json(await workspaceResponse());
   });
