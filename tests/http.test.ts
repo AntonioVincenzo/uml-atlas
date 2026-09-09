@@ -7,8 +7,8 @@ import { createApp } from '../src/server/http';
 import { Store } from '../src/server/store';
 import type { AddressInfo } from 'node:net';
 import { createServer } from 'node:http';
-test('HTTP API rejects foreign origins and missing mutation headers; validates saves', async t => {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'atlas-http-')); t.after(() => rm(root, { recursive: true, force: true })); const store = new Store(root); const initial = await store.init();
+test('HTTP API guards mutations, validates saves, and isolates switched projects', async t => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'atlas-http-')); const secondRoot = await mkdtemp(path.join(os.tmpdir(), 'atlas-http-second-')); t.after(() => Promise.all([rm(root, { recursive: true, force: true }), rm(secondRoot, { recursive: true, force: true })]).then(() => {})); const store = new Store(root); const initial = await store.init();
   const server = createServer().listen(0, '127.0.0.1'); await new Promise<void>(r => server.once('listening', r)); t.after(() => new Promise<void>((r, reject) => server.close(e => e ? reject(e) : r()))); const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   server.on('request', createApp(store, root, (server.address() as AddressInfo).port));
   const headers = { 'Content-Type': 'application/json' };
@@ -19,4 +19,7 @@ test('HTTP API rejects foreign origins and missing mutation headers; validates s
   const saved = await fetch(url + '/api/save', { method: 'POST', headers: mutationHeaders, body: JSON.stringify({ document: doc, baseRevision: initial.revision, author: 'Test', rationale: 'Rename' }) }); assert.equal(saved.status, 200);
   const stale = await fetch(url + '/api/save', { method: 'POST', headers: mutationHeaders, body: JSON.stringify({ document: doc, baseRevision: initial.revision, author: 'Test', rationale: 'Stale' }) }); assert.equal(stale.status, 409);
   assert.equal((await fetch(url + '/api/save', { method: 'POST', headers: mutationHeaders, body: '{}' })).status, 400);
+  assert.equal((await fetch(url + '/api/workspace/open', { method: 'POST', headers: mutationHeaders, body: JSON.stringify({ path: 'relative/project' }) })).status, 400);
+  const switched = await fetch(url + '/api/workspace/open', { method: 'POST', headers: mutationHeaders, body: JSON.stringify({ path: secondRoot }) }); assert.equal(switched.status, 200); const second = await switched.json(); assert.equal(second.workspacePath, secondRoot); assert.equal(second.document.name, 'Untitled architecture');
+  const switchedBack = await fetch(url + '/api/workspace/open', { method: 'POST', headers: mutationHeaders, body: JSON.stringify({ path: root }) }); assert.equal(switchedBack.status, 200); const firstAgain = await switchedBack.json(); assert.equal(firstAgain.workspacePath, root); assert.equal(firstAgain.document.name, 'Changed');
 });

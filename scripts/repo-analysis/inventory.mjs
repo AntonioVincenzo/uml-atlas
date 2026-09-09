@@ -19,7 +19,7 @@ const manifest = {
   analyzer: { name: 'uml-atlas-repository-analysis', version: ANALYZER_VERSION },
   runId: `sha256:${hash(stableJson({ analyzerVersion: ANALYZER_VERSION, inputDigest }))}`,
   source: { root: '.', inputDigest: `sha256:${inputDigest}` },
-  configuration: { ignoredDirectoryNames: ['.atlas', '.git', '.repo-analysis', 'artifacts', 'coverage', 'dist', 'node_modules'] },
+  configuration: { ignoredNames: ['.DS_Store', '.atlas', '.git', '.pytest_cache', '.repo-analysis', '.venv', '__pycache__', 'artifacts', 'coverage', 'dist', 'node_modules'] },
   outputs: { inventory: 'inventory/artifacts.jsonl', quality: 'quality/report.json' },
 };
 

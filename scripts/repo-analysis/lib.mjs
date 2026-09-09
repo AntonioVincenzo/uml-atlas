@@ -4,7 +4,8 @@ import path from 'node:path';
 
 export const ANALYZER_VERSION = '0.1.0';
 export const DEFAULT_IGNORES = new Set([
-  '.git', '.atlas', '.repo-analysis', 'artifacts', 'coverage', 'dist', 'node_modules',
+  '.DS_Store', '.git', '.atlas', '.pytest_cache', '.repo-analysis', '.venv', '__pycache__',
+  'artifacts', 'coverage', 'dist', 'node_modules',
 ]);
 
 const LANGUAGE_BY_EXTENSION = new Map(Object.entries({
@@ -101,6 +102,8 @@ export function classifyRole(uri) {
   const lower = uri.toLowerCase();
   const filename = path.posix.basename(lower);
   if (/^licenses\//.test(lower)) return 'vendored';
+  if (/(^|\/)(output|outputs|generated)(\/|$)/.test(lower)) return 'generated';
+  if (filename === '.gitattributes' || filename === '.gitignore' || filename === 'pyproject.toml') return 'configuration';
   if (/(^|\/)(test|tests|spec|specs|__tests__)(\/|$)/.test(lower) || /(?:^|[._-])(test|spec)\.[^.]+$/.test(filename)) return 'test';
   if (/(^|\/)(docs?|examples?)(\/|$)/.test(lower) || /\.(md|rst|adoc)$/.test(filename)) return 'documentation';
   if (/(^|\/)(vendor|third_party|external)(\/|$)/.test(lower)) return 'vendored';
@@ -137,13 +140,14 @@ export async function artifactRecord(root, item) {
   const bytes = await readFile(absolute);
   const inspection = inspectBytes(bytes);
   const language = classifyLanguage(item.relative);
+  const role = classifyRole(item.relative);
   return {
     schemaVersion: 1, recordType: 'artifact', id: `artifact:${item.relative}`,
     uri: item.relative, artifactType: inspection.binary ? 'binary' : 'text',
-    role: classifyRole(item.relative), language,
+    role, language,
     mediaType: inspection.binary ? 'application/octet-stream' : 'text/plain',
     bytes: bytes.length, lines: inspection.lines, contentHash: `sha256:${hash(bytes)}`,
-    generatedHint: inspection.generatedHint,
+    generatedHint: inspection.generatedHint || role === 'generated',
     epistemic: { status: 'observed', confidence: 1, method: 'filesystem.read' },
   };
 }

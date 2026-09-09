@@ -6,6 +6,8 @@ The [side-by-side UML notation report](public/uml-comparison.html) compares conv
 
 The [repository decontextualization study](research/repository-decontextualization/REPORT.md) defines a staged, evidence-preserving route from source repositories to structured pseudocode and reviewable Atlas diagrams. It includes a runnable inventory/quality slice, the proposed repository IR schemas, pipeline contracts, and candidate-tool licensing notes.
 
+The [Visua Loom case study](research/case-studies/visua-loom.arch.json) applies that boundary in practice: systems, responsibilities, behavior, and outputs form the architecture, while source locations remain optional evidence links.
+
 ## Run it
 
 Requires Node.js 22.12 or newer and npm.
@@ -32,7 +34,7 @@ Open http://127.0.0.1:5173. The development launcher starts both Vite and the lo
 node /absolute/path/to/atlas/dist/server/cli.js serve --workspace /path/to/your/project
 ```
 
-The architecture and history live inside the selected project. The architecture is independent of that project's programming language. Use a different `--port` when running several workspaces simultaneously.
+The architecture and history live inside the selected project. The architecture is independent of that project's programming language. Use **Switch project** in the top bar to open another absolute directory without restarting Atlas. Each directory has an isolated `architecture.json`, revision history, proposals, and code-link root; recent paths are stored in the browser for quick return. The MCP configuration shown by **Connect agent** follows the currently selected project.
 
 A new workspace starts empty. Add `--demo` to seed a new workspace with the initial Atlas architecture; existing files are never overwritten by initialization.
 
@@ -114,7 +116,7 @@ Unsaved model/source drafts remain in browser memory. Save a revision to persist
 
 ## Scope of version 0.1
 
-Supported: component, class, interface, actor, usecase, package, database, service, state, note, and enum elements; association, dependency, generalization, realization, composition, aggregation, and transition relationships; members, stereotypes and multiplicities; reusable diagram references; code links and snippets; structural diffs and local revision review.
+Supported: component, class, interface, actor, usecase, package, database, service, state, note, and enum elements; association, dependency, generalization, realization, composition, aggregation, and transition relationships; members, stereotypes and multiplicities; reusable diagram references; code links and snippets; structural diffs and local revision review; isolated switching among local project workspaces.
 
 This is a documented **PlantUML-style subset with Atlas extensions**, not a full PlantUML renderer or a UML 2.5 conformance implementation. It validates graph structure, imports and inheritance cycles, not every UML metamodel constraint or behavioral property. The diff compares model structure, not formal behavioral equivalence. Specialized node renderings are useful architecture views, not complete UML diagram-family editors.
 

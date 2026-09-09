@@ -1,0 +1,448 @@
+{
+  "schemaVersion": 1,
+  "id": "visua_loom",
+  "name": "Visua Loom · Pattern systems",
+  "diagrams": [
+    {
+      "id": "overview",
+      "name": "System overview",
+      "description": "Three cooperating systems: an experimental explorer, a promoted stable engine, and a fabrication compositor. Files are linked evidence; the model describes responsibilities, flows, and outputs.",
+      "nodes": [
+        {
+          "id": "designer",
+          "kind": "actor",
+          "label": "Pattern designer",
+          "position": { "x": 20, "y": 190 },
+          "description": "Explores geometric patterns and composes fabrication-ready designs.",
+          "stereotype": "",
+          "members": [],
+          "codeLinks": []
+        },
+        {
+          "id": "quality",
+          "kind": "component",
+          "label": "Geometric quality characterization",
+          "position": { "x": 1080, "y": 500 },
+          "description": "Measures duplicate segments and node-degree topology, then records catalog properties. Current gates characterize rather than universally prove quality.",
+          "stereotype": "verification",
+          "members": [],
+          "codeLinks": [
+            { "path": "plane_tilings/quality/gates.py", "startLine": 24 },
+            { "path": "plane_tilings/quality/run_gates.py", "startLine": 1 }
+          ]
+        },
+        {
+          "id": "pattern_outputs",
+          "kind": "component",
+          "label": "Pattern and fabrication outputs",
+          "position": { "x": 1480, "y": 190 },
+          "description": "Interactive SVG previews, geometry-only SVG fragments, composed part geometries, and fabrication-ready SVG files with embedded provenance metadata.",
+          "stereotype": "outputs",
+          "members": [
+            "+interactive SVG",
+            "+PatternOutput",
+            "+PipelineResult",
+            "+fabrication SVG + metadata"
+          ],
+          "codeLinks": [
+            { "path": "plane_tilings/compositor/export.py", "startLine": 47 }
+          ]
+        }
+      ],
+      "edges": [
+        { "id": "explore", "source": "designer", "target": "explorer", "kind": "association", "label": "vary geometry and inspect", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "compose", "source": "designer", "target": "compositor", "kind": "association", "label": "author recipe and export", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "promote", "source": "explorer", "target": "engine", "kind": "dependency", "label": "promote selected algorithms deliberately", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "consume_engine", "source": "compositor", "target": "engine", "kind": "dependency", "label": "consume versioned stage API", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "characterize", "source": "quality", "target": "explorer", "kind": "dependency", "label": "characterize generated patterns", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "preview_output", "source": "explorer", "target": "pattern_outputs", "kind": "dependency", "label": "interactive previews", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "engine_output", "source": "engine", "target": "pattern_outputs", "kind": "dependency", "label": "geometry + bounds + metadata", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "fabrication_output", "source": "compositor", "target": "pattern_outputs", "kind": "dependency", "label": "parts + fabrication SVG", "sourceMultiplicity": "", "targetMultiplicity": "" }
+      ],
+      "imports": [
+        { "id": "explorer", "diagramId": "experimental_explorer", "label": "Experimental explorer", "position": { "x": 350, "y": 70 }, "expanded": false },
+        { "id": "engine", "diagramId": "stable_engine", "label": "Stable pattern engine", "position": { "x": 720, "y": 230 }, "expanded": false },
+        { "id": "compositor", "diagramId": "fabrication_compositor", "label": "Fabrication compositor", "position": { "x": 1080, "y": 30 }, "expanded": false }
+      ]
+    },
+    {
+      "id": "stable_engine",
+      "name": "Stable engine pipeline",
+      "description": "The public stability boundary. A registered, versioned stage turns typed parameters and a promoted tiling catalog into output-agnostic geometry with provenance.",
+      "nodes": [
+        {
+          "id": "registry",
+          "kind": "component",
+          "label": "Stage registry",
+          "position": { "x": 20, "y": 50 },
+          "description": "Explicitly registers stages and exposes discovery by stable name.",
+          "stereotype": "registry",
+          "members": ["+register(stage)", "+get_stage(name)", "+list_stages()"],
+          "codeLinks": [{ "path": "plane_tilings/engine/registry.py", "startLine": 1 }]
+        },
+        {
+          "id": "stage_contract",
+          "kind": "class",
+          "label": "Stage",
+          "position": { "x": 20, "y": 330 },
+          "description": "Versioned generation contract and structural parameter check.",
+          "stereotype": "abstract",
+          "members": ["+name: string", "+version: string", "+describe(): StageDescriptor", "+generate(params): PatternOutput"],
+          "codeLinks": [{ "path": "plane_tilings/engine/stage.py", "startLine": 85 }]
+        },
+        {
+          "id": "brewer_stage",
+          "kind": "class",
+          "label": "BrewerV1Stage",
+          "position": { "x": 360, "y": 210 },
+          "description": "Promoted Brewer pipeline with tiling selection, packing, modulation, interlacing, clipping, and output metadata.",
+          "stereotype": "generation stage",
+          "members": ["+name: brewer-v1", "+version: 1.0", "+describe(): StageDescriptor", "+generate(BrewerParams): PatternOutput"],
+          "codeLinks": [{ "path": "plane_tilings/engine/stages/brewer_v1.py", "startLine": 68, "endLine": 290 }]
+        },
+        {
+          "id": "tiling_catalog",
+          "kind": "component",
+          "label": "Promoted tiling catalog",
+          "position": { "x": 700, "y": 20 },
+          "description": "Frozen definitions for eleven supported tilings, isolated from continued explorer experiments.",
+          "stereotype": "domain data",
+          "members": ["+get(tiling_id): TilingDef", "+list(): string[]"],
+          "codeLinks": [{ "path": "plane_tilings/engine/tilings/catalog.py", "startLine": 1 }]
+        },
+        {
+          "id": "vertex_graph",
+          "kind": "component",
+          "label": "Vertex graph and modulation",
+          "position": { "x": 700, "y": 230 },
+          "description": "Constructs the geometric topology and applies global or per-face transforms before packing.",
+          "stereotype": "geometry",
+          "members": [],
+          "codeLinks": [
+            { "path": "plane_tilings/engine/stages/_brewer/vertex_graph.py", "startLine": 1 },
+            { "path": "plane_tilings/engine/stages/_brewer/transforms.py", "startLine": 1 }
+          ]
+        },
+        {
+          "id": "packing",
+          "kind": "component",
+          "label": "Circle packing",
+          "position": { "x": 1010, "y": 230 },
+          "description": "Places vertex and interior circles, tangent points, radii, and reflection bisectors.",
+          "stereotype": "geometry",
+          "members": [],
+          "codeLinks": [{ "path": "plane_tilings/engine/stages/_brewer/packing.py", "startLine": 33 }]
+        },
+        {
+          "id": "pattern_generation",
+          "kind": "component",
+          "label": "Pattern generation and interlace",
+          "position": { "x": 1300, "y": 230 },
+          "description": "Reflects generating lines through the packing and optionally resolves mono or strap interlacing.",
+          "stereotype": "algorithm",
+          "members": [],
+          "codeLinks": [
+            { "path": "plane_tilings/engine/stages/_brewer/brewer.py", "startLine": 34 },
+            { "path": "plane_tilings/engine/stages/_brewer/interlace.py", "startLine": 1036 }
+          ]
+        },
+        {
+          "id": "pattern_output",
+          "kind": "class",
+          "label": "PatternOutput",
+          "position": { "x": 1600, "y": 210 },
+          "description": "Immutable, output-agnostic envelope returned across the engine boundary.",
+          "stereotype": "output envelope",
+          "members": ["+svg_content: geometry fragment", "+bounds: (minx, miny, maxx, maxy)", "+metadata: PatternMetadata"],
+          "codeLinks": [{ "path": "plane_tilings/engine/stage.py", "startLine": 48, "endLine": 62 }]
+        }
+      ],
+      "edges": [
+        { "id": "registry_contract", "source": "registry", "target": "stage_contract", "kind": "dependency", "label": "stores implementations", "sourceMultiplicity": "1", "targetMultiplicity": "0..*" },
+        { "id": "implements", "source": "brewer_stage", "target": "stage_contract", "kind": "generalization", "label": "", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "select_tiling", "source": "brewer_stage", "target": "tiling_catalog", "kind": "dependency", "label": "select tiling", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "build_graph", "source": "tiling_catalog", "target": "vertex_graph", "kind": "dependency", "label": "construct region", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "pack", "source": "vertex_graph", "target": "packing", "kind": "dependency", "label": "pack transformed topology", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "generate", "source": "packing", "target": "pattern_generation", "kind": "dependency", "label": "tangencies + mirrors", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "emit", "source": "pattern_generation", "target": "pattern_output", "kind": "dependency", "label": "geometry + provenance", "sourceMultiplicity": "", "targetMultiplicity": "" }
+      ],
+      "imports": []
+    },
+    {
+      "id": "fabrication_compositor",
+      "name": "Fabrication compositor",
+      "description": "A recipe-driven geometry pipeline. It combines engine output or imported SVG with parametric shapes, transforms working geometry into named parts, and exports one fabrication SVG per part.",
+      "nodes": [
+        {
+          "id": "compositor_ui",
+          "kind": "service",
+          "label": "Compositor browser",
+          "position": { "x": 20, "y": 50 },
+          "description": "Authors recipes, previews composed geometry, and requests exports.",
+          "stereotype": "browser client",
+          "members": [],
+          "codeLinks": [{ "path": "plane_tilings/compositor/static/index.html", "startLine": 1 }]
+        },
+        {
+          "id": "compositor_api",
+          "kind": "service",
+          "label": "Compositor HTTP API",
+          "position": { "x": 330, "y": 50 },
+          "description": "Lists stages, validates recipe YAML, previews pipeline execution, persists recipes, and packages exports. Runs separately from the explorer.",
+          "stereotype": "local service :8421",
+          "members": [],
+          "codeLinks": [{ "path": "plane_tilings/compositor/server.py", "startLine": 1 }]
+        },
+        {
+          "id": "recipe",
+          "kind": "class",
+          "label": "Pipeline",
+          "position": { "x": 660, "y": 20 },
+          "description": "Ordered, validated recipe of named stages with parameter expressions and optional part emission.",
+          "stereotype": "recipe",
+          "members": ["+stages: Stage[]", "+to_dict(): dict", "+from_dict(data): Pipeline"],
+          "codeLinks": [{ "path": "plane_tilings/compositor/pipeline.py", "startLine": 34, "endLine": 112 }]
+        },
+        {
+          "id": "operations",
+          "kind": "interface",
+          "label": "Compositor operations",
+          "position": { "x": 990, "y": 20 },
+          "description": "Registry-dispatched operations manipulate a shared execution context without name branching in the pipeline loop.",
+          "stereotype": "operation registry",
+          "members": ["+set_dimensions", "+add_shape", "+clip", "+generate", "+optimize"],
+          "codeLinks": [{ "path": "plane_tilings/compositor/operations.py", "startLine": 42 }]
+        },
+        {
+          "id": "execution",
+          "kind": "class",
+          "label": "ExecutionContext",
+          "position": { "x": 660, "y": 300 },
+          "description": "Mutable per-run state containing source geometry, working geometry, named outputs, parts, parameters, dimensions, and warnings.",
+          "stereotype": "runtime state",
+          "members": ["+working: Geometry", "+outputs: map", "+parts: map", "+namespace: ParameterNamespace", "+resolve(name): Geometry", "+emit(name, geometry)"],
+          "codeLinks": [{ "path": "plane_tilings/compositor/pipeline.py", "startLine": 123, "endLine": 191 }]
+        },
+        {
+          "id": "imported_svg",
+          "kind": "component",
+          "label": "Imported SVG geometry",
+          "position": { "x": 990, "y": 300 },
+          "description": "Adapter parses supported SVG geometry into the compositor’s Shapely representation.",
+          "stereotype": "input adapter",
+          "members": [],
+          "codeLinks": [{ "path": "plane_tilings/compositor/svg_input.py", "startLine": 1 }]
+        },
+        {
+          "id": "parts",
+          "kind": "component",
+          "label": "Named part geometries",
+          "position": { "x": 1320, "y": 210 },
+          "description": "Pipeline result exposes working geometry plus named fabrication parts, resolved parameters, and warnings.",
+          "stereotype": "logical output",
+          "members": [],
+          "codeLinks": [{ "path": "plane_tilings/compositor/pipeline.py", "startLine": 114 }]
+        },
+        {
+          "id": "exporter",
+          "kind": "component",
+          "label": "Fabrication SVG exporter",
+          "position": { "x": 1610, "y": 210 },
+          "description": "Writes one normalized SVG per non-empty part with schema-versioned JSON metadata and an export report.",
+          "stereotype": "output adapter",
+          "members": ["+export_parts(...): ExportReport", "+read_export_metadata(path): dict"],
+          "codeLinks": [{ "path": "plane_tilings/compositor/export.py", "startLine": 299 }]
+        }
+      ],
+      "edges": [
+        { "id": "ui_api", "source": "compositor_ui", "target": "compositor_api", "kind": "association", "label": "recipe / preview / export", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "api_recipe", "source": "compositor_api", "target": "recipe", "kind": "dependency", "label": "validate and execute", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "api_engine", "source": "compositor_api", "target": "engine", "kind": "dependency", "label": "generate source pattern", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "recipe_ops", "source": "recipe", "target": "operations", "kind": "dependency", "label": "dispatch each stage", "sourceMultiplicity": "1", "targetMultiplicity": "1..*" },
+        { "id": "ops_context", "source": "operations", "target": "execution", "kind": "dependency", "label": "transform shared state", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "svg_context", "source": "imported_svg", "target": "execution", "kind": "dependency", "label": "optional source geometry", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "engine_context", "source": "engine", "target": "execution", "kind": "dependency", "label": "PatternOutput geometry", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "result_parts", "source": "execution", "target": "parts", "kind": "dependency", "label": "PipelineResult", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "parts_export", "source": "parts", "target": "exporter", "kind": "dependency", "label": "normalize and write", "sourceMultiplicity": "", "targetMultiplicity": "" }
+      ],
+      "imports": [
+        { "id": "engine", "diagramId": "stable_engine", "label": "Stable pattern engine", "position": { "x": 330, "y": 300 }, "expanded": false }
+      ]
+    },
+    {
+      "id": "experimental_explorer",
+      "name": "Experimental explorer",
+      "description": "The broad interactive research surface. It owns legacy geometry packages and a large all-in-one preview pipeline; selected algorithms are copied and adapted into the stable engine rather than imported from here.",
+      "nodes": [
+        {
+          "id": "explorer_ui",
+          "kind": "service",
+          "label": "Pattern explorer browser",
+          "position": { "x": 20, "y": 160 },
+          "description": "Interactive tiling, angle, modulation, interlace, region, and Christie controls.",
+          "stereotype": "browser client",
+          "members": [],
+          "codeLinks": [{ "path": "plane_tilings/preview/static/index.html", "startLine": 1 }]
+        },
+        {
+          "id": "preview_server",
+          "kind": "service",
+          "label": "Preview server",
+          "position": { "x": 340, "y": 160 },
+          "description": "Local HTTP service with cached packings and a large parameterized SVG-generation path.",
+          "stereotype": "local service :8420",
+          "members": ["+generate_svg(...): string", "+generate_christie_svg(...): string", "+generate_filled_svg(...): string"],
+          "codeLinks": [{ "path": "plane_tilings/preview/server.py", "startLine": 87 }]
+        },
+        {
+          "id": "core_math",
+          "kind": "package",
+          "label": "Core geometry",
+          "position": { "x": 690, "y": 20 },
+          "description": "Vectors, lines, circles, polygons, intersections, and transforms. Pure mathematical substrate shared by explorer packages and parts of the promoted engine.",
+          "stereotype": "plane_tilings.core",
+          "members": [],
+          "codeLinks": [{ "path": "plane_tilings/core/vec2.py", "startLine": 1 }]
+        },
+        {
+          "id": "tilings",
+          "kind": "package",
+          "label": "Experimental tilings",
+          "position": { "x": 690, "y": 180 },
+          "description": "Mutable catalog and geometry builders for Archimedean tilings.",
+          "stereotype": "plane_tilings.tilings",
+          "members": [],
+          "codeLinks": [{ "path": "plane_tilings/tilings/uniform.py", "startLine": 1 }]
+        },
+        {
+          "id": "packing",
+          "kind": "package",
+          "label": "Experimental packing",
+          "position": { "x": 990, "y": 20 },
+          "description": "Circle packing, tangent data, and interior-circle completion over tiling geometry.",
+          "stereotype": "plane_tilings.packing",
+          "members": [],
+          "codeLinks": [{ "path": "plane_tilings/packing/packing.py", "startLine": 1 }]
+        },
+        {
+          "id": "patterns",
+          "kind": "package",
+          "label": "Pattern algorithms",
+          "position": { "x": 990, "y": 220 },
+          "description": "Brewer generation, Christie rosettes, interlacing, pattern regions, and pattern value objects.",
+          "stereotype": "plane_tilings.pattern",
+          "members": [],
+          "codeLinks": [{ "path": "plane_tilings/pattern/brewer.py", "startLine": 30 }]
+        },
+        {
+          "id": "modulation",
+          "kind": "package",
+          "label": "Pattern modulation",
+          "position": { "x": 1290, "y": 20 },
+          "description": "Vertex graph and global or face-selective geometric transforms.",
+          "stereotype": "plane_tilings.modulate",
+          "members": [],
+          "codeLinks": [{ "path": "plane_tilings/modulate/transforms.py", "startLine": 1 }]
+        },
+        {
+          "id": "svg_renderer",
+          "kind": "package",
+          "label": "Styled SVG renderer",
+          "position": { "x": 1290, "y": 220 },
+          "description": "Applies viewport, colors, strokes, overlays, and HTML preview concerns to pattern geometry.",
+          "stereotype": "plane_tilings.render",
+          "members": [],
+          "codeLinks": [{ "path": "plane_tilings/render/svg.py", "startLine": 18 }]
+        },
+        {
+          "id": "interactive_svg",
+          "kind": "component",
+          "label": "Interactive SVG response",
+          "position": { "x": 1600, "y": 160 },
+          "description": "Styled SVG returned to the browser for rapid visual experimentation.",
+          "stereotype": "output",
+          "members": [],
+          "codeLinks": []
+        }
+      ],
+      "edges": [
+        { "id": "browser_request", "source": "explorer_ui", "target": "preview_server", "kind": "association", "label": "parameters / SVG", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "server_tilings", "source": "preview_server", "target": "tilings", "kind": "dependency", "label": "select and generate region", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "tiling_math", "source": "tilings", "target": "core_math", "kind": "dependency", "label": "geometric primitives", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "packing_math", "source": "packing", "target": "core_math", "kind": "dependency", "label": "distance + intersections", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "packing_tiling", "source": "packing", "target": "tilings", "kind": "dependency", "label": "pack tiling region", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "patterns_packing", "source": "patterns", "target": "packing", "kind": "dependency", "label": "reflect across tangent graph", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "patterns_math", "source": "patterns", "target": "core_math", "kind": "dependency", "label": "segments + intersections", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "modulate_tiling", "source": "modulation", "target": "tilings", "kind": "dependency", "label": "transform topology", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "server_pipeline", "source": "preview_server", "target": "patterns", "kind": "dependency", "label": "generate / interlace / regions", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "server_modulate", "source": "preview_server", "target": "modulation", "kind": "dependency", "label": "apply controls", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "server_render", "source": "preview_server", "target": "svg_renderer", "kind": "dependency", "label": "style and serialize", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "render_output", "source": "svg_renderer", "target": "interactive_svg", "kind": "dependency", "label": "SVG document", "sourceMultiplicity": "", "targetMultiplicity": "" }
+      ],
+      "imports": []
+    },
+    {
+      "id": "evidence_partition",
+      "name": "Repository evidence partition",
+      "description": "How the source scan was reduced into this architecture. Only runtime-bearing source becomes architecture structure; other artifacts qualify, test, describe, or result from that structure.",
+      "nodes": [
+        {
+          "id": "runtime",
+          "kind": "package",
+          "label": "Runtime-bearing source",
+          "position": { "x": 20, "y": 150 },
+          "description": "70 runtime-bearing artifacts: 68 Python modules and two browser/client HTML files. These determine structural and behavioral nodes.",
+          "stereotype": "architecture evidence",
+          "members": [],
+          "codeLinks": []
+        },
+        {
+          "id": "tests",
+          "kind": "component",
+          "label": "Test corpus",
+          "position": { "x": 370, "y": 20 },
+          "description": "26 Python test artifacts. They verify contracts and reveal intended invariants but do not become production components.",
+          "stereotype": "verification evidence",
+          "members": [],
+          "codeLinks": [{ "path": "tests/conftest.py", "startLine": 1 }]
+        },
+        {
+          "id": "documentation",
+          "kind": "note",
+          "label": "Documentation and design claims",
+          "position": { "x": 370, "y": 250 },
+          "description": "README and mathematical notes describe intended boundaries and algorithms. Claims are corroboration, not executable facts.",
+          "stereotype": "",
+          "members": [],
+          "codeLinks": [{ "path": "README.md", "startLine": 1 }]
+        },
+        {
+          "id": "generated",
+          "kind": "component",
+          "label": "Generated specimens",
+          "position": { "x": 720, "y": 150 },
+          "description": "Two checked-in output artifacts were recognized as results. They are useful for visual comparison and defect evidence, not as source structure.",
+          "stereotype": "output evidence",
+          "members": ["+output/bug_instance.html", "+output/strap_fixed.svg"],
+          "codeLinks": []
+        },
+        {
+          "id": "excluded",
+          "kind": "note",
+          "label": "Excluded environment noise",
+          "position": { "x": 1060, "y": 150 },
+          "description": "Virtual environment, pytest cache, bytecode caches, Atlas metadata, and generated analysis output are excluded by directory policy.",
+          "stereotype": "",
+          "members": [],
+          "codeLinks": []
+        }
+      ],
+      "edges": [
+        { "id": "tests_verify", "source": "tests", "target": "runtime", "kind": "dependency", "label": "verify behavior and invariants", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "docs_describe", "source": "documentation", "target": "runtime", "kind": "dependency", "label": "describe intent", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "runtime_emits", "source": "runtime", "target": "generated", "kind": "dependency", "label": "emits specimens", "sourceMultiplicity": "", "targetMultiplicity": "" }
+      ],
+      "imports": []
+    }
+  ]
+}
