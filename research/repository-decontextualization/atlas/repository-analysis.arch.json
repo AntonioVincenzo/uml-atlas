@@ -1,0 +1,137 @@
+{
+  "schemaVersion": 1,
+  "id": "repository_analysis",
+  "name": "Repository analysis pipeline",
+  "diagrams": [
+    {
+      "id": "recovery_pipeline",
+      "name": "Evidence-preserving recovery pipeline",
+      "description": "Language adapters progressively lower repository evidence into a shared intermediate representation. Quality gates prevent incomplete or uncertain results from appearing as settled architecture.",
+      "nodes": [
+        {
+          "id": "repository",
+          "kind": "database",
+          "label": "Repository snapshot",
+          "position": { "x": 20, "y": 180 },
+          "description": "Hashed source, manifests, configuration, generated artifacts, and explicit ignore policy.",
+          "stereotype": "observed evidence",
+          "members": [],
+          "codeLinks": []
+        },
+        {
+          "id": "inventory",
+          "kind": "component",
+          "label": "Inventory and build context",
+          "position": { "x": 330, "y": 60 },
+          "description": "Creates deterministic artifact records and discovers build units without discarding unresolved contexts.",
+          "stereotype": "observed",
+          "members": [],
+          "codeLinks": [
+            { "path": "scripts/repo-analysis/inventory.mjs", "startLine": 1 }
+          ]
+        },
+        {
+          "id": "language_adapters",
+          "kind": "component",
+          "label": "Language adapters",
+          "position": { "x": 330, "y": 310 },
+          "description": "Locked parsers, compilers, SCIP indexers, or CPG frontends emit syntax, symbols, references, behavior, diagnostics, and loss records.",
+          "stereotype": "parsed + resolved",
+          "members": [],
+          "codeLinks": []
+        },
+        {
+          "id": "rir",
+          "kind": "database",
+          "label": "Repository IR",
+          "position": { "x": 710, "y": 170 },
+          "description": "Canonical attributed graph of artifacts, entities, relations, operations, evidence, uncertainty, and language extensions.",
+          "stereotype": "evidence preserving",
+          "members": [],
+          "codeLinks": [
+            { "path": "research/repository-decontextualization/schemas/repository-ir.schema.json", "startLine": 1 }
+          ]
+        },
+        {
+          "id": "quality",
+          "kind": "component",
+          "label": "Quality and usefulness gates",
+          "position": { "x": 710, "y": 440 },
+          "description": "Checks schemas, referential integrity, coverage denominators, determinism, evidence density, uncertainty, and task-specific usefulness.",
+          "stereotype": "verification",
+          "members": [],
+          "codeLinks": [
+            { "path": "scripts/repo-analysis/quality.mjs", "startLine": 1 }
+          ]
+        },
+        {
+          "id": "architecture",
+          "kind": "component",
+          "label": "Architecture candidates",
+          "position": { "x": 1090, "y": 60 },
+          "description": "Deterministic evidence and graph aggregation propose components, services, layers, boundaries, and relations with alternatives and contradictions.",
+          "stereotype": "inferred",
+          "members": [],
+          "codeLinks": []
+        },
+        {
+          "id": "pseudocode",
+          "kind": "component",
+          "label": "Pseudocode and UML views",
+          "position": { "x": 1090, "y": 300 },
+          "description": "Renders structured operations and accepted architecture. Rendered text is a view rather than canonical data.",
+          "stereotype": "derived view",
+          "members": [],
+          "codeLinks": []
+        },
+        {
+          "id": "atlas_review",
+          "kind": "interface",
+          "label": "Atlas MCP review",
+          "position": { "x": 1460, "y": 180 },
+          "description": "Validates the projection and submits a revision-aware proposal for human review, correction, and acceptance.",
+          "stereotype": "assertion boundary",
+          "members": [],
+          "codeLinks": [
+            { "path": "src/server/mcp.ts", "startLine": 15, "endLine": 26 }
+          ]
+        }
+      ],
+      "edges": [
+        { "id": "read_inventory", "source": "repository", "target": "inventory", "kind": "dependency", "label": "hash + classify", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "read_languages", "source": "repository", "target": "language_adapters", "kind": "dependency", "label": "parse + index", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "inventory_facts", "source": "inventory", "target": "rir", "kind": "dependency", "label": "artifact + build facts", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "semantic_facts", "source": "language_adapters", "target": "rir", "kind": "dependency", "label": "structure + behavior + loss", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "verify", "source": "rir", "target": "quality", "kind": "dependency", "label": "measure claims", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "infer", "source": "rir", "target": "architecture", "kind": "dependency", "label": "score candidates", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "gate_candidates", "source": "quality", "target": "architecture", "kind": "dependency", "label": "coverage + uncertainty", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "render", "source": "rir", "target": "pseudocode", "kind": "dependency", "label": "render behavior", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "project", "source": "architecture", "target": "pseudocode", "kind": "dependency", "label": "project accepted candidates", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "propose", "source": "pseudocode", "target": "atlas_review", "kind": "dependency", "label": "validate + propose", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "correct", "source": "atlas_review", "target": "architecture", "kind": "dependency", "label": "assert mappings + boundaries", "sourceMultiplicity": "", "targetMultiplicity": "" }
+      ],
+      "imports": []
+    },
+    {
+      "id": "epistemic_contract",
+      "name": "Epistemic contract",
+      "description": "Each level states how a record became known. Confidence refines a status but never replaces it.",
+      "nodes": [
+        { "id": "observed", "kind": "state", "label": "Observed", "position": { "x": 20, "y": 120 }, "description": "Read directly from controlled input.", "stereotype": "fact", "members": [], "codeLinks": [] },
+        { "id": "parsed", "kind": "state", "label": "Parsed", "position": { "x": 270, "y": 120 }, "description": "Recognized by a named grammar.", "stereotype": "fact under grammar", "members": [], "codeLinks": [] },
+        { "id": "resolved", "kind": "state", "label": "Resolved", "position": { "x": 520, "y": 120 }, "description": "Bound by a semantic tool within captured build context.", "stereotype": "contextual fact", "members": [], "codeLinks": [] },
+        { "id": "derived", "kind": "state", "label": "Derived", "position": { "x": 790, "y": 120 }, "description": "Computed deterministically from prior records.", "stereotype": "reproducible result", "members": [], "codeLinks": [] },
+        { "id": "inferred", "kind": "state", "label": "Inferred", "position": { "x": 1060, "y": 120 }, "description": "Selected as the best supported hypothesis with alternatives retained.", "stereotype": "hypothesis", "members": [], "codeLinks": [] },
+        { "id": "asserted", "kind": "state", "label": "Asserted", "position": { "x": 1330, "y": 120 }, "description": "Supplied or accepted by a person or agent as design intent.", "stereotype": "design decision", "members": [], "codeLinks": [] }
+      ],
+      "edges": [
+        { "id": "observe_parse", "source": "observed", "target": "parsed", "kind": "transition", "label": "grammar", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "parse_resolve", "source": "parsed", "target": "resolved", "kind": "transition", "label": "build + semantics", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "resolve_derive", "source": "resolved", "target": "derived", "kind": "transition", "label": "versioned rule", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "derive_infer", "source": "derived", "target": "inferred", "kind": "transition", "label": "rank hypotheses", "sourceMultiplicity": "", "targetMultiplicity": "" },
+        { "id": "infer_assert", "source": "inferred", "target": "asserted", "kind": "transition", "label": "review / accept", "sourceMultiplicity": "", "targetMultiplicity": "" }
+      ],
+      "imports": []
+    }
+  ]
+}

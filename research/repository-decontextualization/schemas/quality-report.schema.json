@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/AntonioVincenzo/uml-atlas/blob/main/research/repository-decontextualization/schemas/quality-report.schema.json",
+  "title": "Atlas repository analysis quality report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "analysisLevel", "verdict", "gates", "coverage", "uncertainty", "diagnostics"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "analysisLevel": { "enum": ["inventory", "syntax", "semantic", "behavior", "architecture"] },
+    "verdict": { "enum": ["pass", "warn", "fail"] },
+    "gates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "verdict", "evidence"],
+        "properties": {
+          "id": { "type": "string" },
+          "verdict": { "enum": ["pass", "warn", "fail", "not-run"] },
+          "evidence": { "type": "object" }
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["numerator", "denominator", "ratio"],
+        "properties": {
+          "numerator": { "type": "integer", "minimum": 0 },
+          "denominator": { "type": "integer", "minimum": 0 },
+          "ratio": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+          "status": { "enum": ["complete", "partial", "not-run", "not-applicable"] }
+        }
+      }
+    },
+    "uncertainty": {
+      "type": "object",
+      "required": ["observedRecords", "parsedRecords", "resolvedRecords", "derivedRecords", "inferredRecords", "assertedRecords"],
+      "properties": {
+        "observedRecords": { "type": "integer", "minimum": 0 },
+        "parsedRecords": { "type": "integer", "minimum": 0 },
+        "resolvedRecords": { "type": "integer", "minimum": 0 },
+        "derivedRecords": { "type": "integer", "minimum": 0 },
+        "inferredRecords": { "type": "integer", "minimum": 0 },
+        "assertedRecords": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["severity", "ruleId"],
+        "properties": {
+          "severity": { "enum": ["note", "warning", "error"] },
+          "ruleId": { "type": "string" },
+          "artifactId": { "type": ["string", "null"] },
+          "recordId": { "type": ["string", "null"] },
+          "message": { "type": "string" }
+        }
+      }
+    }
+  }
+}

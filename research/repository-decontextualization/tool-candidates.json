@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "scope": "Candidate analysis tools; these are not installed or distributed by Atlas unless separately added to the dependency inventory.",
+  "components": [
+    {
+      "name": "Tree-sitter",
+      "role": "tolerant concrete syntax parsing",
+      "license": "MIT",
+      "source": "https://github.com/tree-sitter/tree-sitter",
+      "distributionPolicy": "acceptable default; inventory every language grammar separately"
+    },
+    {
+      "name": "SCIP",
+      "role": "symbol and reference interchange",
+      "license": "Apache-2.0",
+      "source": "https://github.com/sourcegraph/scip",
+      "distributionPolicy": "acceptable protocol; inventory indexers and bundled compiler components separately"
+    },
+    {
+      "name": "Kythe",
+      "role": "alternative semantic graph and indexing ecosystem",
+      "license": "Apache-2.0",
+      "source": "https://github.com/kythe/kythe",
+      "distributionPolicy": "acceptable optional adapter"
+    },
+    {
+      "name": "Joern",
+      "role": "Code Property Graph and behavior analysis",
+      "license": "Apache-2.0",
+      "source": "https://github.com/joernio/joern",
+      "distributionPolicy": "acceptable optional adapter; inventory frontend and transitive artifacts"
+    },
+    {
+      "name": "Semgrep Community Edition",
+      "role": "generic AST experiments and rule probes",
+      "license": "LGPL-2.1-only",
+      "source": "https://github.com/semgrep/semgrep",
+      "distributionPolicy": "optional external process pending distribution review"
+    },
+    {
+      "name": "srcML",
+      "role": "source-preserving XML transformation",
+      "license": "GPL-3.0",
+      "source": "https://github.com/srcML/srcML",
+      "distributionPolicy": "do not bundle by default; review copyleft obligations before distribution"
+    },
+    {
+      "name": "Babelfish/UAST",
+      "role": "historical reference for language normalization",
+      "license": "GPL-3.0",
+      "source": "https://github.com/bblfsh/sdk",
+      "distributionPolicy": "reference only; not recommended as a maintained foundation"
+    },
+    {
+      "name": "CodeQL CLI",
+      "role": "optional semantic-analysis oracle",
+      "license": "LicenseRef-GitHub-CodeQL-Terms",
+      "source": "https://github.com/github/codeql-cli-binaries/blob/main/LICENSE.md",
+      "distributionPolicy": "exclude from default product; closed-source and automation uses can require a commercial license"
+    },
+    {
+      "name": "OMG KDM 1.4",
+      "role": "metamodel reference and compatibility mapping",
+      "license": "LicenseRef-OMG-Specification",
+      "source": "https://www.omg.org/spec/KDM/1.4/PDF",
+      "distributionPolicy": "implement concepts and mappings; do not vendor specification text"
+    },
+    {
+      "name": "OMG ASTM 1.0",
+      "role": "generic AST metamodel reference",
+      "license": "LicenseRef-OMG-Specification",
+      "source": "https://www.omg.org/spec/ASTM/1.0/",
+      "distributionPolicy": "implement concepts and mappings; do not vendor specification text"
+    }
+  ]
+}

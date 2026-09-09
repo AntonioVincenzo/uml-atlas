@@ -1,0 +1,178 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/AntonioVincenzo/uml-atlas/blob/main/research/repository-decontextualization/schemas/repository-ir.schema.json",
+  "title": "Atlas Repository Intermediate Representation record",
+  "description": "Schema for one JSONL record. Facts and hypotheses share traceability but retain different epistemic status.",
+  "oneOf": [
+    { "$ref": "#/$defs/artifact" },
+    { "$ref": "#/$defs/entity" },
+    { "$ref": "#/$defs/relation" },
+    { "$ref": "#/$defs/operation" },
+    { "$ref": "#/$defs/architectureCandidate" },
+    { "$ref": "#/$defs/loss" }
+  ],
+  "$defs": {
+    "epistemic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "confidence", "method"],
+      "properties": {
+        "status": { "enum": ["observed", "parsed", "resolved", "derived", "inferred", "asserted"] },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "method": { "type": "string", "minLength": 1 },
+        "ruleVersion": { "type": "string" },
+        "explanation": { "type": "string" }
+      }
+    },
+    "span": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifactId", "startByte", "endByte"],
+      "properties": {
+        "artifactId": { "type": "string", "minLength": 1 },
+        "startByte": { "type": "integer", "minimum": 0 },
+        "endByte": { "type": "integer", "minimum": 0 },
+        "startLine": { "type": "integer", "minimum": 1 },
+        "startColumn": { "type": "integer", "minimum": 1 },
+        "endLine": { "type": "integer", "minimum": 1 },
+        "endColumn": { "type": "integer", "minimum": 1 },
+        "contentHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" }
+      }
+    },
+    "trace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidenceIds"],
+      "properties": {
+        "evidenceIds": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "spans": { "type": "array", "items": { "$ref": "#/$defs/span" } },
+        "contradictionIds": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+      }
+    },
+    "base": {
+      "type": "object",
+      "required": ["schemaVersion", "recordType", "id", "epistemic"],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "recordType": { "type": "string" },
+        "id": { "type": "string", "minLength": 1 },
+        "epistemic": { "$ref": "#/$defs/epistemic" },
+        "trace": { "$ref": "#/$defs/trace" },
+        "languageExtensions": { "type": "object", "additionalProperties": true }
+      }
+    },
+    "artifact": {
+      "allOf": [
+        { "$ref": "#/$defs/base" },
+        {
+          "type": "object",
+          "required": ["recordType", "uri", "artifactType", "role", "bytes", "generatedHint"],
+          "properties": {
+            "recordType": { "const": "artifact" },
+            "uri": { "type": "string", "minLength": 1 },
+            "artifactType": { "enum": ["text", "binary", "symlink"] },
+            "role": { "enum": ["source", "test", "configuration", "documentation", "lockfile", "vendored", "generated", "unknown"] },
+            "language": { "type": ["string", "null"] },
+            "mediaType": { "type": ["string", "null"] },
+            "bytes": { "type": "integer", "minimum": 0 },
+            "lines": { "type": ["integer", "null"], "minimum": 0 },
+            "contentHash": { "type": ["string", "null"], "pattern": "^sha256:[a-f0-9]{64}$" },
+            "generatedHint": { "type": "boolean" }
+            ,"symlinkTarget": { "type": "string" }
+          }
+        }
+      ]
+    },
+    "entity": {
+      "allOf": [
+        { "$ref": "#/$defs/base" },
+        {
+          "type": "object",
+          "required": ["recordType", "kind", "name", "qualifiedName"],
+          "properties": {
+            "recordType": { "const": "entity" },
+            "kind": { "enum": ["repository", "build-unit", "module", "namespace", "type", "callable", "field", "parameter", "endpoint", "table", "configuration", "external"] },
+            "name": { "type": "string" },
+            "qualifiedName": { "type": "string" },
+            "parentId": { "type": ["string", "null"] },
+            "visibility": { "enum": ["public", "protected", "private", "internal", "local", "unknown"] },
+            "typeId": { "type": ["string", "null"] },
+            "modifiers": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+          }
+        }
+      ]
+    },
+    "relation": {
+      "allOf": [
+        { "$ref": "#/$defs/base" },
+        {
+          "type": "object",
+          "required": ["recordType", "kind", "sourceId", "targetId", "resolution"],
+          "properties": {
+            "recordType": { "const": "relation" },
+            "kind": { "enum": ["contains", "declares", "imports", "depends-on", "references", "calls", "reads", "writes", "inherits", "implements", "instantiates", "routes-to", "persists-to", "emits", "subscribes"] },
+            "sourceId": { "type": "string" },
+            "targetId": { "type": "string" },
+            "resolution": { "enum": ["exact", "candidate", "unresolved"] },
+            "dispatchCandidates": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+          }
+        }
+      ]
+    },
+    "operation": {
+      "allOf": [
+        { "$ref": "#/$defs/base" },
+        {
+          "type": "object",
+          "required": ["recordType", "callableId", "order", "opcode", "operands", "effects", "loss"],
+          "properties": {
+            "recordType": { "const": "operation" },
+            "callableId": { "type": "string" },
+            "blockId": { "type": ["string", "null"] },
+            "order": { "type": "integer", "minimum": 0 },
+            "opcode": { "enum": ["bind", "read", "write", "call", "construct", "branch", "loop", "match", "return", "throw", "await", "spawn", "yield", "resource-enter", "resource-exit", "opaque"] },
+            "operands": { "type": "array", "items": { "type": ["string", "number", "boolean", "null"] } },
+            "resultId": { "type": ["string", "null"] },
+            "effects": { "type": "array", "items": { "enum": ["pure", "reads-state", "writes-state", "io", "network", "persistence", "synchronization", "unknown"] }, "uniqueItems": true },
+            "loss": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+          }
+        }
+      ]
+    },
+    "architectureCandidate": {
+      "allOf": [
+        { "$ref": "#/$defs/base" },
+        {
+          "type": "object",
+          "required": ["recordType", "candidateKind", "label", "memberIds", "status", "rationale"],
+          "properties": {
+            "recordType": { "const": "architecture-candidate" },
+            "candidateKind": { "enum": ["layer", "component", "service", "package", "subsystem", "database", "actor", "boundary"] },
+            "label": { "type": "string" },
+            "memberIds": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+            "status": { "enum": ["proposed", "accepted", "rejected", "superseded"] },
+            "rationale": { "type": "string" },
+            "alternatives": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+          }
+        }
+      ]
+    },
+    "loss": {
+      "allOf": [
+        { "$ref": "#/$defs/base" },
+        {
+          "type": "object",
+          "required": ["recordType", "subjectId", "category", "description", "recoverable"],
+          "properties": {
+            "recordType": { "const": "loss" },
+            "subjectId": { "type": "string" },
+            "category": { "enum": ["syntax", "type", "control-flow", "data-flow", "dispatch", "concurrency", "runtime", "framework", "intent"] },
+            "description": { "type": "string" },
+            "recoverable": { "type": "boolean" },
+            "requiredContext": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+          }
+        }
+      ]
+    }
+  }
+}

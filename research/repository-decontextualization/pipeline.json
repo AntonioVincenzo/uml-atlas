@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 1,
+  "name": "Repository dissolution pipeline",
+  "principle": "Preserve evidence and uncertainty while progressively lowering language-specific facts into shared structures.",
+  "scripts": [
+    {
+      "order": 0,
+      "id": "inventory",
+      "implementation": "scripts/repo-analysis/inventory.mjs",
+      "status": "available",
+      "inputs": ["repository bytes", "ignore policy"],
+      "outputs": ["manifest.json", "inventory/artifacts.jsonl"],
+      "epistemicOutput": "observed",
+      "gate": "Every included artifact has one relative URI and content hash; reruns are byte-identical."
+    },
+    {
+      "order": 10,
+      "id": "build-context",
+      "implementation": "planned: adapters/<ecosystem>/build-context",
+      "status": "specified",
+      "inputs": ["inventory", "lockfiles", "build manifests", "explicit operator configuration"],
+      "outputs": ["context/build-units.jsonl", "context/dependencies.jsonl"],
+      "epistemicOutput": "observed|parsed",
+      "gate": "Build roots, dependency versions, generated-source roots, and unresolved prerequisites are explicit."
+    },
+    {
+      "order": 20,
+      "id": "concrete-syntax",
+      "implementation": "planned: adapter-selected Tree-sitter or compiler parser",
+      "status": "specified",
+      "inputs": ["text artifacts", "language adapter lock"],
+      "outputs": ["syntax/units.jsonl", "syntax/diagnostics.jsonl"],
+      "epistemicOutput": "parsed",
+      "gate": "Parse coverage and ERROR/MISSING-node counts are reported per language; original spans remain addressable."
+    },
+    {
+      "order": 30,
+      "id": "semantic-index",
+      "implementation": "planned: SCIP or compiler/LSP adapter",
+      "status": "specified",
+      "inputs": ["build context", "source artifacts"],
+      "outputs": ["semantic/symbols.jsonl", "semantic/occurrences.jsonl", "semantic/relations.jsonl"],
+      "epistemicOutput": "resolved",
+      "gate": "Definitions, references, types, and dispatch candidates are counted separately; unresolved occurrences remain records."
+    },
+    {
+      "order": 40,
+      "id": "normalize-structure",
+      "implementation": "planned: adapters/<language>/lower-structure",
+      "status": "specified",
+      "inputs": ["syntax", "symbols", "occurrences"],
+      "outputs": ["ir/entities.jsonl", "ir/relations.jsonl", "ir/evidence.jsonl", "ir/loss.jsonl"],
+      "epistemicOutput": "derived",
+      "gate": "Every normalized record has evidence, a versioned lowering rule, and an explicit loss list."
+    },
+    {
+      "order": 50,
+      "id": "lower-behavior",
+      "implementation": "planned: adapter-selected compiler IR or CPG frontend",
+      "status": "specified",
+      "inputs": ["normalized structure", "language semantic model"],
+      "outputs": ["behavior/callables.jsonl", "behavior/operations.jsonl", "behavior/control-flow.jsonl", "behavior/data-flow.jsonl"],
+      "epistemicOutput": "derived|inferred",
+      "gate": "Unsupported constructs are preserved as opaque operations; exact and possible call edges are distinct."
+    },
+    {
+      "order": 60,
+      "id": "render-pseudocode",
+      "implementation": "planned: renderers/structured-behavior-text",
+      "status": "specified",
+      "inputs": ["structured behavior IR"],
+      "outputs": ["views/pseudocode/*.pseudo", "views/pseudocode/index.jsonl"],
+      "epistemicOutput": "derived",
+      "gate": "Text is a view over operation records; rendering never becomes the canonical representation."
+    },
+    {
+      "order": 70,
+      "id": "infer-architecture",
+      "implementation": "planned: rules plus graph aggregation",
+      "status": "specified",
+      "inputs": ["entities", "relations", "build units", "framework evidence", "optional declared model"],
+      "outputs": ["architecture/candidates.jsonl", "architecture/mappings.jsonl", "architecture/conformance.jsonl"],
+      "epistemicOutput": "inferred|asserted",
+      "gate": "Candidates expose supporting and contradicting evidence and are not promoted without policy or review."
+    },
+    {
+      "order": 80,
+      "id": "quality",
+      "implementation": "scripts/repo-analysis/quality.mjs",
+      "status": "available-for-inventory; specified-for-later-layers",
+      "inputs": ["all prior outputs", "quality policy"],
+      "outputs": ["quality/report.json", "quality/diagnostics.sarif"],
+      "epistemicOutput": "derived",
+      "gate": "Schema, integrity, coverage, determinism, evidence density, uncertainty, and calibration thresholds pass."
+    },
+    {
+      "order": 90,
+      "id": "atlas-project",
+      "implementation": "planned: adapters/atlas/project",
+      "status": "specified",
+      "inputs": ["accepted architecture records", "UML projection policy"],
+      "outputs": ["atlas/recovered.arch.json", "atlas/traceability.jsonl"],
+      "epistemicOutput": "derived",
+      "gate": "Atlas validation passes and every UML element links back to IR evidence or a human assertion."
+    },
+    {
+      "order": 95,
+      "id": "baseline-diff",
+      "implementation": "planned: compare stable semantic IDs and evidence fingerprints",
+      "status": "specified",
+      "inputs": ["current run", "accepted baseline"],
+      "outputs": ["diff/structural.json", "diff/quality.json", "diff/atlas-proposal.json"],
+      "epistemicOutput": "derived",
+      "gate": "Moves, renames, extraction changes, source changes, and confidence changes are distinguishable."
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .atlas/
+.repo-analysis/
 *.log
 .DS_Store
 artifacts/

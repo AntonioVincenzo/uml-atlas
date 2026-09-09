@@ -4,6 +4,8 @@ Atlas is a local visual architecture editor with a shared JSON model, round-trip
 
 The [side-by-side UML notation report](public/uml-comparison.html) compares conventional UML 2.5.1 visualization with Atlas's current equivalents, including a fidelity assessment and implementation roadmap. It is served at `/uml-comparison.html` while Atlas is running.
 
+The [repository decontextualization study](research/repository-decontextualization/REPORT.md) defines a staged, evidence-preserving route from source repositories to structured pseudocode and reviewable Atlas diagrams. It includes a runnable inventory/quality slice, the proposed repository IR schemas, pipeline contracts, and candidate-tool licensing notes.
+
 ## Run it
 
 Requires Node.js 22.12 or newer and npm.

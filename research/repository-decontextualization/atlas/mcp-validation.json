@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "transport": "stdio MCP",
+  "toolsCalled": [
+    "get_architecture",
+    "validate_architecture",
+    "propose_architecture",
+    "get_proposal"
+  ],
+  "baseRevision": "8f90b778-4cc6-4d21-967e-492d0cdc28b3",
+  "valid": true,
+  "proposedDiagramIds": [
+    "recovery_pipeline",
+    "epistemic_contract"
+  ],
+  "proposalId": "507353b6-1b8f-4e7b-890d-7203c7764787",
+  "status": "pending",
+  "changeCount": 32,
+  "changeKinds": [
+    "added"
+  ]
+}
