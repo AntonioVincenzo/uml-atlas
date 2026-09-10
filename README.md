@@ -51,7 +51,7 @@ Choose your own license for the original code before public distribution. See [t
 
 ## Design and review
 
-1. Add an element, choose its UML kind, and edit its properties in the inspector. Drag nodes to arrange them, or use **Tidy layout** to form deterministic left-to-right relationship layers with clearance for labels. Fresh graphs authored in UML source receive this layout automatically. Drag from a right-hand connection handle to another node's left-hand handle to create the selected relationship type. Click an edge to edit its endpoints, label, or multiplicities.
+1. Add an element, choose its UML kind, and edit its properties in the inspector. Drag nodes to arrange them, or use **Tidy layout** to form deterministic left-to-right relationship layers with clearance for labels and report any remaining routing complaints. Fresh graphs authored in UML source receive this layout automatically. Hover over a node to reveal its top, right, bottom, and left connection handles, then drag between handles to create the selected relationship type. Click an edge to edit its endpoints, label, or multiplicities.
 2. Switch to **UML source** or **JSON** to edit the same diagram as text. **Apply to diagram** validates the candidate before updating the canvas. The last applied model remains visible while text is incomplete. Stable IDs survive edits. Undo and redo apply to local model edits; un-applied source has its own discard action.
 3. Create reusable diagrams in the library. **Embed diagram** inserts a live reference within this document. Expand a reference in place or open its source. The same part can appear in multiple wholes. Nested imports are checked for cycles. Expanded children are read only; open the source to edit them.
 4. **Export project** writes a portable `.arch.json` document. **Import project diagrams** accepts that file or another project's `architecture.json`, namespaces all diagram IDs, and preserves references between imported diagrams. Imports are snapshots copied into the destination; they do not watch the original project. Re-importing makes another independent snapshot. Code paths remain relative and may need retargeting in the destination.
@@ -86,7 +86,7 @@ The usual prompt is:
 
 > Use Atlas to read the current architecture. Preserve stable IDs. Propose the design change with a concise rationale and the current base revision. I will inspect the proposal in the studio.
 
-Tools: `get_architecture`, `get_diagram`, `validate_architecture`, `propose_architecture`, `propose_diagram`, `list_proposals`, `get_proposal`, `get_history`, `compare_revisions`, and `read_code_region`. Resources: `atlas://architecture` and `atlas://schema`. Detailed contract and examples: [MCP guide](docs/MCP.md).
+Tools: `get_architecture`, `get_diagram`, `analyze_diagram_layout`, `validate_architecture`, `propose_architecture`, `propose_diagram`, `list_proposals`, `get_proposal`, `get_history`, `compare_revisions`, and `read_code_region`. `analyze_diagram_layout` returns deterministic node, connector, and label geometry plus typed collision complaints. Resources: `atlas://architecture` and `atlas://schema`. Detailed contract and examples: [MCP guide](docs/MCP.md).
 
 Agent writes create proposals; the MCP surface does not expose acceptance. Atlas detects proposals every four seconds. If another writer saves first, stale acceptance fails instead of overwriting it. Refresh and create a new proposal; Atlas does not automatically merge conflicting designs.
 

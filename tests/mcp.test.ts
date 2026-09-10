@@ -14,6 +14,7 @@ test('real stdio MCP client can discover, read, propose, inspect, and observe UI
   const call = async (name: string, args: Record<string, unknown> = {}) => { const result = await client.callTool({ name, arguments: args }); if (result.isError) throw new Error(JSON.stringify(result.content)); return JSON.parse((result.content as any)[0].text); };
   const current = await call('get_architecture'); assert.equal(current.revision, initial.revision);
   const diagram = await call('get_diagram', { diagramId: 'overview' }); assert.match(diagram.uml, /@startuml overview/);
+  const geometry = await call('analyze_diagram_layout', { diagramId: 'overview' }); assert.equal(geometry.nodes.length, 6); assert.equal(geometry.connectors.length, 5); assert.ok(Array.isArray(geometry.complaints));
   const proposed = await call('propose_diagram', { diagramId: 'overview', uml: diagram.uml.replace('"Designer"', '"System architect"'), baseRevision: current.revision, author: 'Test agent', rationale: 'Clarify who reviews architecture' });
   assert.equal(proposed.changes[0].fields[0], 'label'); assert.equal((await call('get_architecture')).revision, current.revision); const inspected = await call('get_proposal', { proposalId: proposed.proposal.id }); assert.equal(inspected.changes.length, 1);
   await store.review(proposed.proposal.id, 'accept'); const updated = await call('get_architecture'); assert.equal(updated.document.diagrams[0].nodes[0].label, 'System architect'); assert.equal((await call('get_history')).length, 2);

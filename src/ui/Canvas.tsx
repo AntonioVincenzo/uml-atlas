@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ReactFlow, Background, Controls, MiniMap, Handle, Position, applyNodeChanges, BaseEdge, EdgeLabelRenderer, getSmoothStepPath, type Node, type Edge, type NodeProps, type EdgeProps, type Connection } from '@xyflow/react';
+import { ReactFlow, Background, Controls, MiniMap, Handle, Position, ConnectionMode, applyNodeChanges, BaseEdge, EdgeLabelRenderer, getSmoothStepPath, type Node, type Edge, type NodeProps, type EdgeProps, type Connection } from '@xyflow/react';
 import type { ArchDocument, Diagram, ArchEdge } from '../core/model';
 import type { Change } from '../core/diff';
-import { expansionBounds, expansionOffset } from '../core/layout';
+import { expansionBounds, expansionOffset, layoutSize } from '../core/layout';
+import { connectionSides, type Rect } from '../core/geometry';
 const EMPTY_CHANGES: Change[] = [];
 const icons: Partial<Record<string, string>> = { actor: '♙' };
+function Ports() { return <><Handle id="port-top" type="source" position={Position.Top}/><Handle id="port-right" type="source" position={Position.Right}/><Handle id="port-bottom" type="source" position={Position.Bottom}/><Handle id="port-left" type="source" position={Position.Left}/></>; }
 function ChangeMark({ change }: { change?: string }) {
   return <span className="node-change">{change === 'added' ? '+' : change === 'removed' ? '−' : change === 'modified' ? 'Δ' : ''}</span>;
 }
@@ -20,7 +22,7 @@ function UmlNode({ data, selected }: NodeProps) {
     const attributes = visibleMembers.filter(member => !member.includes('('));
     const operations = visibleMembers.filter(member => member.includes('('));
     return <div className={`uml-node classifier-node kind-class ${selected ? 'selected' : ''} change-${n.change || ''}`}>
-      <Handle type="target" position={Position.Left}/><Handle type="source" position={Position.Right}/><ChangeMark change={n.change}/>
+      <Ports/><ChangeMark change={n.change}/>
       <div className="classifier-heading">{n.stereotype && <div className="classifier-stereotype">«{n.stereotype}»</div>}<div className="classifier-name">{n.label}</div></div>
       <div className="classifier-compartment">{attributes.map((member, i) => <div key={i}>{member}</div>)}</div>
       <div className="classifier-compartment">{operations.map((member, i) => <div key={i}>{member}</div>)}{remaining > 0 && <div>+{remaining} more</div>}<ClassifierMeta node={n}/></div>
@@ -28,26 +30,26 @@ function UmlNode({ data, selected }: NodeProps) {
   }
   if (n.kind === 'enum') {
     return <div className={`uml-node classifier-node kind-enum ${selected ? 'selected' : ''} change-${n.change || ''}`}>
-      <Handle type="target" position={Position.Left}/><Handle type="source" position={Position.Right}/><ChangeMark change={n.change}/>
+      <Ports/><ChangeMark change={n.change}/>
       <div className="classifier-heading"><div className="classifier-stereotype">«enumeration»</div><div className="classifier-name">{n.label}</div></div>
       <div className="classifier-compartment">{visibleMembers.map((member, i) => <div key={i}>{member}</div>)}{remaining > 0 && <div>+{remaining} more</div>}<ClassifierMeta node={n}/></div>
     </div>;
   }
   if (n.kind === 'actor' || n.kind === 'usecase') {
     return <div className={`uml-node compact-node kind-${n.kind} ${selected ? 'selected' : ''} change-${n.change || ''}`}>
-      <Handle type="target" position={Position.Left}/><Handle type="source" position={Position.Right}/><ChangeMark change={n.change}/>
+      <Ports/><ChangeMark change={n.change}/>
       <div className="compact-title">{icons[n.kind] && <span className="compact-icon" aria-hidden="true">{icons[n.kind]}</span>}<span>{n.label}</span></div>
       {visibleMembers.length > 0 && <div className="node-members">{visibleMembers.map((member, i) => <div key={i}>{member}</div>)}</div>}<ClassifierMeta node={n}/>
     </div>;
   }
   if (n.kind === 'note') {
     return <div className={`uml-node kind-note ${selected ? 'selected' : ''} change-${n.change || ''}`}>
-      <Handle type="target" position={Position.Left}/><Handle type="source" position={Position.Right}/><ChangeMark change={n.change}/>
+      <Ports/><ChangeMark change={n.change}/>
       <div className="note-title">{n.label}</div>{n.description && <div className="node-note">{n.description}</div>}<ClassifierMeta node={n}/>
     </div>;
   }
   return <div className={`uml-node kind-${n.kind} ${selected ? 'selected' : ''} change-${n.change || ''}`}>
-    <Handle type="target" position={Position.Left}/><Handle type="source" position={Position.Right}/>
+    <Ports/>
     <ChangeMark change={n.change}/><div className="node-kind">«{n.stereotype || n.kind}»</div>
     <div className="node-label">{n.label}</div>
     {visibleMembers.length > 0 && <div className="node-members">{visibleMembers.map((m, i) => <div key={i}>{m}</div>)}{remaining > 0 && <div>+{remaining} more</div>}</div>}
@@ -57,7 +59,7 @@ function UmlNode({ data, selected }: NodeProps) {
 function EmbedNode({ data, selected }: NodeProps) {
   const n = data as any;
   return <div className={`embed-node ${n.expanded ? 'expanded' : ''} ${selected ? 'selected' : ''} change-${n.change || ''}`} style={n.expanded ? { width: n.width, height: n.height } : undefined}>
-    <Handle type="target" position={Position.Left}/><Handle type="source" position={Position.Right}/>
+    <Ports/>
     <div className="embed-heading"><span>«diagramRef»</span>{n.change && <b>{n.change}</b>}</div>
     <div className="node-label">{n.label}</div>
     {!n.expanded && <><div className="embed-preview">{n.preview?.slice(0, 3).map((x: string, i: number) => <span key={i}>{x}</span>)}</div><div className="node-meta">{n.count} elements · {n.name}</div></>}
@@ -103,13 +105,17 @@ export default function Canvas({ document, diagram, onSelect, onMove, onConnect,
         nodes.push({ id: prefix + i.id, type: 'embed', parentId, position: { x: i.position.x + offset.x + visualOffset.x, y: i.position.y + offset.y + visualOffset.y }, style: { width: expanded ? width : 270, height: expanded ? height : undefined }, data: { ...i, visualOffset, expanded, width, height, localId: i.id, name: child.name, count: childItems.length, preview: child.nodes.map(n => n.label), change: change(i.id, d.id), onOpen, onExpand: !parentId && !readOnly ? onExpand ?? (() => {}) : () => onOpen(i.diagramId) }, draggable: !readOnly && !parentId, selectable: !parentId, selected: !parentId && focusId === i.id, zIndex: expanded ? -1 : 0 });
         if (expanded) collect(child, `${prefix}${i.id}__`, prefix + i.id, { x: 35 - minX, y: 120 - minY });
       }
-      for (const e of d.edges) edges.push({ id: prefix + e.id, type: 'uml', source: prefix + e.source, target: prefix + e.target, label: e.label, data: { ...e, localId: e.id, nested: !!parentId, change: change(e.id, d.id) }, selectable: !parentId, selected: !parentId && focusId === e.id });
+      const rectangle = (node: Node): Rect => { const estimated = layoutSize(node.data as any); const width = Number(node.style?.width ?? estimated.width); const height = Number(node.style?.height ?? estimated.height); return { left: node.position.x, top: node.position.y, right: node.position.x + width, bottom: node.position.y + height }; };
+      for (const e of d.edges) {
+        const source = nodes.find(node => node.id === prefix + e.source)!; const target = nodes.find(node => node.id === prefix + e.target)!; const sides = connectionSides(rectangle(source), rectangle(target));
+        edges.push({ id: prefix + e.id, type: 'uml', source: prefix + e.source, target: prefix + e.target, sourceHandle: `port-${sides.source}`, targetHandle: `port-${sides.target}`, label: e.label, data: { ...e, localId: e.id, nested: !!parentId, change: change(e.id, d.id) }, selectable: !parentId, selected: !parentId && focusId === e.id });
+      }
     }
     collect(diagram); return { nodes, edges };
   }, [document, diagram, changes, readOnly, onOpen, onExpand, focusId]);
   const [nodes, setNodes] = useState(built.nodes);
   useEffect(() => setNodes(built.nodes), [built]);
-  return <ReactFlow nodes={nodes} edges={built.edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes} onNodesChange={c => setNodes(n => applyNodeChanges(c, n))} onNodeDragStop={(_, n) => onMove?.(n.type === 'embed' ? 'import' : 'node', n.id, { x: n.position.x - ((n.data.visualOffset as any)?.x ?? 0), y: n.position.y - ((n.data.visualOffset as any)?.y ?? 0) })} onNodeClick={(_, n) => { if (!n.parentId) onSelect?.(n.type === 'embed' ? 'import' : 'node', n.id); }} onEdgeClick={(_, e) => { if (!e.data?.nested) onSelect?.('edge', e.id); }} onConnect={onConnect} nodesConnectable={!readOnly} nodesDraggable={!readOnly} deleteKeyCode={null} fitView fitViewOptions={{ padding: .2 }} minZoom={.15} maxZoom={2} aria-label={`${diagram.name} diagram canvas`}>
+  return <ReactFlow nodes={nodes} edges={built.edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes} connectionMode={ConnectionMode.Loose} onNodesChange={c => setNodes(n => applyNodeChanges(c, n))} onNodeDragStop={(_, n) => onMove?.(n.type === 'embed' ? 'import' : 'node', n.id, { x: n.position.x - ((n.data.visualOffset as any)?.x ?? 0), y: n.position.y - ((n.data.visualOffset as any)?.y ?? 0) })} onNodeClick={(_, n) => { if (!n.parentId) onSelect?.(n.type === 'embed' ? 'import' : 'node', n.id); }} onEdgeClick={(_, e) => { if (!e.data?.nested) onSelect?.('edge', e.id); }} onConnect={onConnect} nodesConnectable={!readOnly} nodesDraggable={!readOnly} deleteKeyCode={null} fitView fitViewOptions={{ padding: .2 }} minZoom={.15} maxZoom={2} aria-label={`${diagram.name} diagram canvas`}>
     <Background color="#cbd6dc" gap={24} size={1}/><Controls showInteractive={false}/>{!readOnly && <MiniMap pannable zoomable nodeColor={n => n.type === 'embed' ? '#98c9c0' : '#b7c8d4'} maskColor="rgba(243,247,249,.75)"/>}
     {!diagram.nodes.length && !diagram.imports.length && <div className="canvas-empty"><div>Start with a building block</div><p>Add an element from the toolbar, or describe your design in UML.</p></div>}
   </ReactFlow>;
