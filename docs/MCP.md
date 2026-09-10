@@ -26,7 +26,7 @@ The illustrative array above is abbreviated; valid documents have at least one d
 
 Use `get_diagram` with `{"diagramId":"overview"}` to get a diagram's JSON, round-trip UML source and current revision. Keep element and relationship IDs unchanged unless intentionally adding/removing entities. Changing an ID is represented as removal and addition.
 
-Call `analyze_diagram_layout` with `{"diagramId":"overview"}` when evaluating legibility. It returns a deterministic geometry table for every node and connector: node top-left and bottom-right coordinates, connector start/end ports and orthogonal segments, and estimated label rectangles. Its typed `complaints` identify node overlaps, labels overlapping nodes or other labels, and connectors crossing nodes or labels. This geometry model is suitable for scripts and agent review without starting a browser; it approximates rendered text dimensions and can be extended with new complaint kinds and remediation procedures as the layout policy evolves.
+Call `analyze_diagram_layout` with `{"diagramId":"overview"}` when evaluating legibility. It returns a deterministic geometry table for every node and connector: node top-left and bottom-right coordinates, connector start/end ports and orthogonal segments, and estimated label rectangles. Its typed `complaints` identify node overlaps, labels overlapping or falling inside the required clearance around nodes, labels overlapping other labels, and connectors crossing nodes or labels. This geometry model is suitable for scripts and agent review without starting a browser; it approximates rendered text dimensions and can be extended with new complaint kinds and remediation procedures as the layout policy evolves.
 
 To propose a single diagram:
 

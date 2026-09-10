@@ -1,11 +1,11 @@
 import type { Diagram } from './model.js';
-import { layoutSize } from './layout.js';
+import { CONNECTOR_LABEL_NODE_GAP, connectorLabelSize, layoutSize } from './layout.js';
 
 export type Point = { x: number; y: number };
 export type Rect = { left: number; top: number; right: number; bottom: number };
 export type PortSide = 'top' | 'right' | 'bottom' | 'left';
 export type GeometryComplaint = {
-  kind: 'node-node-overlap' | 'label-node-overlap' | 'label-label-overlap' | 'connector-through-node' | 'connector-through-label';
+  kind: 'node-node-overlap' | 'label-node-overlap' | 'label-node-clearance' | 'label-label-overlap' | 'connector-through-node' | 'connector-through-label';
   connectorId?: string; otherConnectorId?: string; nodeId?: string; otherNodeId?: string;
 };
 export type ConnectorRoute = { sourceSide: PortSide; targetSide: PortSide; start: Point; end: Point; segments: { start: Point; end: Point }[]; labelPoint: Point; returnOffset?: number };
@@ -13,6 +13,8 @@ export type ConnectorRoute = { sourceSide: PortSide; targetSide: PortSide; start
 const center = (rect: Rect): Point => ({ x: (rect.left + rect.right) / 2, y: (rect.top + rect.bottom) / 2 });
 export function connectionSides(source: Rect, target: Rect): { source: PortSide; target: PortSide } {
   const from = center(source); const to = center(target); const dx = to.x - from.x; const dy = to.y - from.y;
+  const verticalClearance = dy >= 0 ? target.top - source.bottom : source.top - target.bottom;
+  if (verticalClearance >= CONNECTOR_LABEL_NODE_GAP) return dy >= 0 ? { source: 'bottom', target: 'top' } : { source: 'top', target: 'bottom' };
   if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? { source: 'right', target: 'left' } : { source: 'left', target: 'right' };
   return dy >= 0 ? { source: 'bottom', target: 'top' } : { source: 'top', target: 'bottom' };
 }
@@ -29,12 +31,13 @@ export function connectionRoute(source: Rect, target: Rect, returnLane = 0): Con
   return { sourceSide: sides.source, targetSide: sides.target, start, end, segments, labelPoint: { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 } };
 }
 const overlaps = (a: Rect, b: Rect) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+const expanded = (rect: Rect, amount: number): Rect => ({ left: rect.left - amount, right: rect.right + amount, top: rect.top - amount, bottom: rect.bottom + amount });
 const segmentIntersects = (segment: { start: Point; end: Point }, rect: Rect) => {
   if (segment.start.x === segment.end.x) return segment.start.x > rect.left && segment.start.x < rect.right && Math.max(Math.min(segment.start.y, segment.end.y), rect.top) < Math.min(Math.max(segment.start.y, segment.end.y), rect.bottom);
   return segment.start.y > rect.top && segment.start.y < rect.bottom && Math.max(Math.min(segment.start.x, segment.end.x), rect.left) < Math.min(Math.max(segment.start.x, segment.end.x), rect.right);
 };
 const labelBounds = (text: string, point: Point): Rect => {
-  const unwrapped = text.length * 7.4 + 16; const width = Math.min(240, Math.max(42, unwrapped)); const lines = Math.max(1, Math.ceil(unwrapped / width)); const height = lines * 17 + 10;
+  const { width, height } = connectorLabelSize(text);
   return { left: point.x - width / 2, right: point.x + width / 2, top: point.y - height / 2, bottom: point.y + height / 2 };
 };
 export function inspectDiagramGeometry(diagram: Diagram) {
@@ -51,6 +54,7 @@ export function inspectDiagramGeometry(diagram: Diagram) {
   for (const connector of connectors) {
     for (const node of nodes) {
       if (connector.label && overlaps(connector.label.bounds, node.bounds)) complaints.push({ kind: 'label-node-overlap', connectorId: connector.id, nodeId: node.id });
+      else if (connector.label && (node.id === connector.source || node.id === connector.target) && overlaps(connector.label.bounds, expanded(node.bounds, CONNECTOR_LABEL_NODE_GAP))) complaints.push({ kind: 'label-node-clearance', connectorId: connector.id, nodeId: node.id });
       if (node.id !== connector.source && node.id !== connector.target && connector.segments.some(segment => segmentIntersects(segment, node.bounds))) complaints.push({ kind: 'connector-through-node', connectorId: connector.id, nodeId: node.id });
     }
   }

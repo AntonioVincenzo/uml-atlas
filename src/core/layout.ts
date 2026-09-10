@@ -2,6 +2,12 @@ import type { ArchDocument, ArchNode, Diagram, DiagramImport } from './model.js'
 
 type LayoutItem = ArchNode | DiagramImport;
 const isImport = (item: LayoutItem): item is DiagramImport => 'diagramId' in item;
+export const CONNECTOR_LABEL_NODE_GAP = 36;
+
+export function connectorLabelSize(text: string) {
+  const unwrapped = text.length * 7.4 + 16; const width = Math.min(240, Math.max(42, unwrapped)); const lines = Math.max(1, Math.ceil(unwrapped / width));
+  return { width, height: lines * 17 + 10 };
+}
 
 export function layoutSize(item: LayoutItem) {
   if (isImport(item)) return { width: 270, height: 150 };
@@ -62,7 +68,7 @@ export function tidyDiagram(diagram: Diagram): Diagram {
     }
   }
   const inbound = new Map(items.map(item => [item.id, [] as string[]]));
-  for (const edge of diagram.edges) if (ids.has(edge.source) && ids.has(edge.target)) inbound.get(edge.target)!.push(edge.source);
+  for (const [source, targets] of adjacency) for (const target of targets) inbound.get(target)!.push(source);
   const byLayer = new Map<number, LayoutItem[]>();
   for (const item of items) { const layer = layerOf.get(item.id)!; byLayer.set(layer, [...(byLayer.get(layer) ?? []), item]); }
   const order = new Map<string, number>();
@@ -76,12 +82,29 @@ export function tidyDiagram(diagram: Diagram): Diagram {
 
   const layers = [...byLayer.keys()].sort((a, b) => a - b); const rowGap = 90; const returnGutter = returnEdgeCount ? 110 + (returnEdgeCount - 1) * 42 : 0;
   const heights = new Map(layers.map(layer => [layer, byLayer.get(layer)!.reduce((sum, item) => sum + layoutSize(item).height, 0) + Math.max(0, byLayer.get(layer)!.length - 1) * rowGap]));
-  const tallest = Math.max(...heights.values()); const positions = new Map<string, { x: number; y: number }>(); let x = 60;
+  const centers = new Map<string, number>();
   for (const layer of layers) {
-    const group = byLayer.get(layer)!; let y = 60 + returnGutter + (tallest - heights.get(layer)!) / 2; const width = Math.max(...group.map(item => layoutSize(item).width));
-    for (const item of group) { positions.set(item.id, { x, y }); y += layoutSize(item).height + rowGap; }
-    const labels = diagram.edges.filter(edge => layerOf.get(edge.source) === layer && (layerOf.get(edge.target) ?? layer) > layer).map(edge => edge.label.length);
-    const labelClearance = Math.min(330, Math.max(190, 55 + Math.max(0, ...labels) * 7)); x += width + labelClearance;
+    const group = byLayer.get(layer)!; const baseline = new Map<string, number>(); let cursor = -heights.get(layer)! / 2;
+    for (const item of group) { const height = layoutSize(item).height; baseline.set(item.id, cursor + height / 2); cursor += height + rowGap; }
+    const desired = group.map(item => {
+      const predecessors = inbound.get(item.id)!.filter(id => centers.has(id));
+      return predecessors.length ? predecessors.reduce((sum, id) => sum + centers.get(id)!, 0) / predecessors.length : baseline.get(item.id)!;
+    });
+    const tops: number[] = [];
+    for (let index = 0; index < group.length; index++) {
+      const preferred = desired[index] - layoutSize(group[index]).height / 2;
+      tops[index] = index ? Math.max(preferred, tops[index - 1] + layoutSize(group[index - 1]).height + rowGap) : preferred;
+    }
+    const translation = desired.reduce((sum, value, index) => sum + value - (tops[index] + layoutSize(group[index]).height / 2), 0) / group.length;
+    group.forEach((item, index) => centers.set(item.id, tops[index] + translation + layoutSize(item).height / 2));
+  }
+  const minTop = Math.min(...items.map(item => centers.get(item.id)! - layoutSize(item).height / 2)); const verticalShift = 60 + returnGutter - minTop;
+  const positions = new Map<string, { x: number; y: number }>(); let x = 60;
+  for (const layer of layers) {
+    const group = byLayer.get(layer)!; const width = Math.max(...group.map(item => layoutSize(item).width));
+    for (const item of group) positions.set(item.id, { x, y: centers.get(item.id)! - layoutSize(item).height / 2 + verticalShift });
+    const labelWidths = diagram.edges.filter(edge => layerOf.get(edge.source) === layer && (layerOf.get(edge.target) ?? layer) > layer && edge.label).map(edge => connectorLabelSize(edge.label).width);
+    const labelClearance = Math.max(190, Math.max(0, ...labelWidths) + CONNECTOR_LABEL_NODE_GAP * 2); x += width + labelClearance;
   }
   return { ...structuredClone(diagram), nodes: diagram.nodes.map(node => ({ ...node, position: positions.get(node.id)! })), imports: diagram.imports.map(reference => ({ ...reference, position: positions.get(reference.id)! })) };
 }

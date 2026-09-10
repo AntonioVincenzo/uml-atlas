@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { exampleDocument } from '../src/core/example';
-import { expansionBounds, expansionOffset, layoutSize, nextNodePosition, tidyDiagram } from '../src/core/layout';
+import { CONNECTOR_LABEL_NODE_GAP, expansionBounds, expansionOffset, layoutSize, nextNodePosition, tidyDiagram } from '../src/core/layout';
 import { inspectDiagramGeometry } from '../src/core/geometry';
 import { newNode, type Diagram } from '../src/core/model';
 test('expanded references push neighboring nodes outside their visual container without editing coordinates', () => {
@@ -21,6 +21,17 @@ test('tidy layout forms deterministic relationship layers without overlapping no
   }
   const next = nextNodePosition(tidy); assert.ok(items.every(item => next.x !== item.position.x || next.y !== item.position.y));
 });
+test('tidy prefers adjacent centerlines and reserves label clearance from endpoint nodes', () => {
+  const node = (id: string, y: number) => ({ ...newNode(id, 'component', { x: 0, y }), label: id });
+  const diagram: Diagram = { id: 'alignment', name: 'Alignment fixture', description: '', imports: [], nodes: [node('source-a', 0), node('source-b', 200), node('unrelated', 400), node('target-a', 0), node('target-b', 200)], edges: [
+    { id: 'a', source: 'source-a', target: 'target-a', kind: 'dependency', label: 'sends validated architecture proposal', sourceMultiplicity: '', targetMultiplicity: '' },
+    { id: 'b', source: 'source-b', target: 'target-b', kind: 'dependency', label: 'reads', sourceMultiplicity: '', targetMultiplicity: '' },
+  ] };
+  const tidy = tidyDiagram(diagram); const audit = inspectDiagramGeometry(tidy); const bounds = new Map(audit.nodes.map(item => [item.id, item.bounds])); const centerY = (id: string) => (bounds.get(id)!.top + bounds.get(id)!.bottom) / 2;
+  assert.equal(centerY('source-a'), centerY('target-a')); assert.equal(centerY('source-b'), centerY('target-b'));
+  const connector = audit.connectors.find(item => item.id === 'a')!; assert.ok(connector.label); assert.ok(connector.label!.bounds.left - bounds.get('source-a')!.right >= CONNECTOR_LABEL_NODE_GAP); assert.ok(bounds.get('target-a')!.left - connector.label!.bounds.right >= CONNECTOR_LABEL_NODE_GAP);
+  assert.ok(!audit.complaints.some(complaint => complaint.kind === 'label-node-clearance'));
+});
 test('geometry audit records ports and reports connector, label, and node collisions', () => {
   const diagram: Diagram = { id: 'collisions', name: 'Collision fixture', description: '', imports: [], nodes: [
     { ...newNode('source', 'component', { x: 0, y: 0 }), label: 'Source' },
@@ -35,6 +46,18 @@ test('geometry audit records ports and reports connector, label, and node collis
   assert.deepEqual({ source: blocked.sourceSide, target: blocked.targetSide }, { source: 'right', target: 'left' }); assert.deepEqual({ source: vertical.sourceSide, target: vertical.targetSide }, { source: 'bottom', target: 'top' });
   assert.ok(audit.complaints.some(complaint => complaint.kind === 'label-node-overlap' && complaint.nodeId === 'obstruction'));
   assert.ok(audit.complaints.some(complaint => complaint.kind === 'connector-through-node' && complaint.nodeId === 'obstruction'));
+});
+test('routing uses vertical ports for row-separated neighbors and horizontal ports for aligned neighbors', () => {
+  const diagram: Diagram = { id: 'ports', name: 'Port fixture', description: '', imports: [], nodes: [
+    { ...newNode('upper', 'component', { x: 0, y: 0 }), label: 'Upper' },
+    { ...newNode('aligned', 'component', { x: 500, y: 0 }), label: 'Aligned' },
+    { ...newNode('lower', 'component', { x: 500, y: 300 }), label: 'Lower' },
+  ], edges: [
+    { id: 'across', source: 'upper', target: 'aligned', kind: 'dependency', label: '', sourceMultiplicity: '', targetMultiplicity: '' },
+    { id: 'diagonal', source: 'upper', target: 'lower', kind: 'dependency', label: '', sourceMultiplicity: '', targetMultiplicity: '' },
+  ] };
+  const audit = inspectDiagramGeometry(diagram); const across = audit.connectors.find(connector => connector.id === 'across')!; const diagonal = audit.connectors.find(connector => connector.id === 'diagonal')!;
+  assert.deepEqual({ source: across.sourceSide, target: across.targetSide }, { source: 'right', target: 'left' }); assert.deepEqual({ source: diagonal.sourceSide, target: diagonal.targetSide }, { source: 'bottom', target: 'top' });
 });
 test('tidy preserves a forward review flow and routes its cycle-closing edge outside the graph', () => {
   const source = structuredClone(exampleDocument.diagrams.find(diagram => diagram.id === 'review_flow')!); const tidy = tidyDiagram(source); const audit = inspectDiagramGeometry(tidy);
