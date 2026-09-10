@@ -22,13 +22,14 @@ test('tidy layout forms deterministic relationship layers without overlapping no
   const next = nextNodePosition(tidy); assert.ok(items.every(item => next.x !== item.position.x || next.y !== item.position.y));
 });
 test('tidy prefers adjacent centerlines and reserves label clearance from endpoint nodes', () => {
-  const node = (id: string, y: number) => ({ ...newNode(id, 'component', { x: 0, y }), label: id });
-  const diagram: Diagram = { id: 'alignment', name: 'Alignment fixture', description: '', imports: [], nodes: [node('source-a', 0), node('source-b', 200), node('unrelated', 400), node('target-a', 0), node('target-b', 200)], edges: [
+  const node = (id: string, kind: 'actor' | 'component' | 'class', y: number) => ({ ...newNode(id, kind, { x: 0, y }), label: id });
+  const diagram: Diagram = { id: 'alignment', name: 'Alignment fixture', description: '', imports: [], nodes: [node('source-a', 'actor', 0), node('source-b', 'actor', 200), node('unrelated', 'actor', 400), node('target-a', 'component', 0), node('target-b', 'class', 200)], edges: [
     { id: 'a', source: 'source-a', target: 'target-a', kind: 'dependency', label: 'sends validated architecture proposal', sourceMultiplicity: '', targetMultiplicity: '' },
     { id: 'b', source: 'source-b', target: 'target-b', kind: 'dependency', label: 'reads', sourceMultiplicity: '', targetMultiplicity: '' },
   ] };
   const tidy = tidyDiagram(diagram); const audit = inspectDiagramGeometry(tidy); const bounds = new Map(audit.nodes.map(item => [item.id, item.bounds])); const centerY = (id: string) => (bounds.get(id)!.top + bounds.get(id)!.bottom) / 2;
   assert.equal(centerY('source-a'), centerY('target-a')); assert.equal(centerY('source-b'), centerY('target-b'));
+  assert.equal(layoutSize(diagram.nodes.find(item => item.id === 'source-a')!).height, 52); assert.equal(layoutSize(diagram.nodes.find(item => item.id === 'target-a')!).height, 106); assert.equal(layoutSize(diagram.nodes.find(item => item.id === 'target-b')!).height, 119);
   const connector = audit.connectors.find(item => item.id === 'a')!; assert.ok(connector.label); assert.ok(connector.label!.bounds.left - bounds.get('source-a')!.right >= CONNECTOR_LABEL_NODE_GAP); assert.ok(bounds.get('target-a')!.left - connector.label!.bounds.right >= CONNECTOR_LABEL_NODE_GAP);
   assert.ok(!audit.complaints.some(complaint => complaint.kind === 'label-node-clearance'));
 });

@@ -11,12 +11,16 @@ export function connectorLabelSize(text: string) {
 
 export function layoutSize(item: LayoutItem) {
   if (isImport(item)) return { width: 270, height: 150 };
-  const members = Math.min(item.members.length, 6);
-  if (item.kind === 'class') return { width: 240, height: 48 + Math.max(34, members * 18) + 34 };
-  if (item.kind === 'enum') return { width: 240, height: 48 + Math.max(34, members * 18) };
-  if (item.kind === 'actor' || item.kind === 'usecase') return { width: 240, height: 64 + members * 18 };
+  const visible = item.members.slice(0, 6); const remaining = item.members.length > visible.length ? 1 : 0; const hasMeta = item.codeLinks.length > 0 || !!item.snippet;
+  const compartmentHeight = (lines: number, meta = false) => Math.max(34, 17 + lines * 17.5 + (meta ? 22 : 0));
+  if (item.kind === 'class') {
+    const attributes = visible.filter(member => !member.includes('(')).length; const operations = visible.length - attributes + remaining;
+    return { width: 240, height: 3 + (item.stereotype ? 55 : 48) + compartmentHeight(attributes) + compartmentHeight(operations, hasMeta) };
+  }
+  if (item.kind === 'enum') return { width: 240, height: 3 + 55 + compartmentHeight(visible.length + remaining, hasMeta) };
+  if (item.kind === 'actor' || item.kind === 'usecase') return { width: 240, height: 52 + (visible.length ? 23 + visible.length * 18 : 0) + (hasMeta ? 24 : 0) };
   if (item.kind === 'note') return { width: 240, height: Math.min(220, 70 + Math.ceil(item.description.length / 34) * 18) };
-  return { width: 240, height: 106 + members * 18 };
+  return { width: 240, height: Math.max(106, 74 + (visible.length ? 21 + visible.length * 18 : 0) + (hasMeta ? 22 : 0)) };
 }
 
 export function nextNodePosition(diagram: Diagram) {
@@ -82,13 +86,16 @@ export function tidyDiagram(diagram: Diagram): Diagram {
 
   const layers = [...byLayer.keys()].sort((a, b) => a - b); const rowGap = 90; const returnGutter = returnEdgeCount ? 110 + (returnEdgeCount - 1) * 42 : 0;
   const heights = new Map(layers.map(layer => [layer, byLayer.get(layer)!.reduce((sum, item) => sum + layoutSize(item).height, 0) + Math.max(0, byLayer.get(layer)!.length - 1) * rowGap]));
+  const baselineCenters = new Map<string, number>();
+  for (const layer of layers) {
+    let cursor = -heights.get(layer)! / 2;
+    for (const item of byLayer.get(layer)!) { const height = layoutSize(item).height; baselineCenters.set(item.id, cursor + height / 2); cursor += height + rowGap; }
+  }
   const centers = new Map<string, number>();
   for (const layer of layers) {
-    const group = byLayer.get(layer)!; const baseline = new Map<string, number>(); let cursor = -heights.get(layer)! / 2;
-    for (const item of group) { const height = layoutSize(item).height; baseline.set(item.id, cursor + height / 2); cursor += height + rowGap; }
-    const desired = group.map(item => {
+    const group = byLayer.get(layer)!; const desired = group.map(item => {
       const predecessors = inbound.get(item.id)!.filter(id => centers.has(id));
-      return predecessors.length ? predecessors.reduce((sum, id) => sum + centers.get(id)!, 0) / predecessors.length : baseline.get(item.id)!;
+      return predecessors.length ? predecessors.reduce((sum, id) => sum + centers.get(id)!, 0) / predecessors.length : baselineCenters.get(item.id)!;
     });
     const tops: number[] = [];
     for (let index = 0; index < group.length; index++) {
@@ -97,6 +104,25 @@ export function tidyDiagram(diagram: Diagram): Diagram {
     }
     const translation = desired.reduce((sum, value, index) => sum + value - (tops[index] + layoutSize(group[index]).height / 2), 0) / group.length;
     group.forEach((item, index) => centers.set(item.id, tops[index] + translation + layoutSize(item).height / 2));
+  }
+  const parent = new Map(items.map(item => [item.id, item.id])); const find = (id: string): string => { const next = parent.get(id)!; if (next === id) return id; const root = find(next); parent.set(id, root); return root; };
+  const unite = (left: string, right: string) => { const a = find(left); const b = find(right); if (a !== b) parent.set(b, a); };
+  for (const [source, targets] of adjacency) for (const target of targets) if (targets.size === 1 && inbound.get(target)!.length === 1) unite(source, target);
+  const aligned = new Map<string, string[]>();
+  for (const item of items) { const root = find(item.id); aligned.set(root, [...(aligned.get(root) ?? []), item.id]); }
+  for (const group of aligned.values()) if (group.length > 1) { const shared = group.reduce((sum, id) => sum + centers.get(id)!, 0) / group.length; group.forEach(id => centers.set(id, shared)); }
+  for (let pass = 0; pass < items.length * 4; pass++) {
+    let moved = false;
+    for (const layer of layers) {
+      const group = byLayer.get(layer)!;
+      for (let index = 1; index < group.length; index++) {
+        const upper = group[index - 1]; const lower = group[index]; const required = (layoutSize(upper).height + layoutSize(lower).height) / 2 + rowGap; const available = centers.get(lower.id)! - centers.get(upper.id)!;
+        if (available + .001 >= required) continue;
+        const shift = (required - available) / 2; const upperGroup = aligned.get(find(upper.id))!; const lowerGroup = aligned.get(find(lower.id))!;
+        upperGroup.forEach(id => centers.set(id, centers.get(id)! - shift)); lowerGroup.forEach(id => centers.set(id, centers.get(id)! + shift)); moved = true;
+      }
+    }
+    if (!moved) break;
   }
   const minTop = Math.min(...items.map(item => centers.get(item.id)! - layoutSize(item).height / 2)); const verticalShift = 60 + returnGutter - minTop;
   const positions = new Map<string, { x: number; y: number }>(); let x = 60;
