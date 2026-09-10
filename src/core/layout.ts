@@ -25,46 +25,42 @@ export function nextNodePosition(diagram: Diagram) {
   return { x: 60, y: 60 };
 }
 
-// Deterministic layered layout. Strongly connected groups share a column, so valid
-// cyclic diagrams remain readable while acyclic flows progress from left to right.
+// Deterministic layered layout. Cycles are reduced to a forward acyclic backbone;
+// cycle-closing edges are then rendered as return paths outside the node field.
 export function tidyDiagram(diagram: Diagram): Diagram {
   const items: LayoutItem[] = [...diagram.nodes, ...diagram.imports];
   if (items.length < 2) return structuredClone(diagram);
   const ids = new Set(items.map(item => item.id));
-  const adjacency = new Map(items.map(item => [item.id, [] as string[]]));
-  for (const edge of diagram.edges) if (ids.has(edge.source) && ids.has(edge.target) && edge.source !== edge.target) adjacency.get(edge.source)!.push(edge.target);
-  for (const targets of adjacency.values()) targets.sort();
-
-  let cursor = 0; const indices = new Map<string, number>(); const low = new Map<string, number>(); const active = new Set<string>(); const stack: string[] = []; const components: string[][] = [];
-  const visit = (id: string) => {
-    indices.set(id, cursor); low.set(id, cursor++); stack.push(id); active.add(id);
-    for (const target of adjacency.get(id) ?? []) {
-      if (!indices.has(target)) { visit(target); low.set(id, Math.min(low.get(id)!, low.get(target)!)); }
-      else if (active.has(target)) low.set(id, Math.min(low.get(id)!, indices.get(target)!));
-    }
-    if (low.get(id) !== indices.get(id)) return;
-    const component: string[] = []; let member = '';
-    do { member = stack.pop()!; active.delete(member); component.push(member); } while (member !== id);
-    components.push(component.sort());
+  const itemById = new Map(items.map(item => [item.id, item]));
+  const adjacency = new Map(items.map(item => [item.id, new Set<string>()]));
+  const hasPath = (source: string, target: string) => {
+    const pending = [source]; const seen = new Set<string>();
+    while (pending.length) { const current = pending.pop()!; if (current === target) return true; if (seen.has(current)) continue; seen.add(current); pending.push(...adjacency.get(current)!); }
+    return false;
   };
-  for (const item of items) if (!indices.has(item.id)) visit(item.id);
-
-  const componentOf = new Map<string, number>(); components.forEach((component, index) => component.forEach(id => componentOf.set(id, index)));
-  const successors = new Map(components.map((_, index) => [index, new Set<number>()])); const indegree = components.map(() => 0);
-  for (const [source, targets] of adjacency) for (const target of targets) {
-    const from = componentOf.get(source)!; const to = componentOf.get(target)!;
-    if (from !== to && !successors.get(from)!.has(to)) { successors.get(from)!.add(to); indegree[to]++; }
+  const candidates = diagram.edges.filter(edge => ids.has(edge.source) && ids.has(edge.target) && edge.source !== edge.target).sort((left, right) => {
+    const delta = (edge: Diagram['edges'][number]) => itemById.get(edge.target)!.position.x - itemById.get(edge.source)!.position.x;
+    const leftDelta = delta(left); const rightDelta = delta(right);
+    return Number(leftDelta < 0) - Number(rightDelta < 0) || rightDelta - leftDelta || left.id.localeCompare(right.id);
+  });
+  let returnEdgeCount = 0;
+  for (const edge of candidates) {
+    if (hasPath(edge.target, edge.source)) returnEdgeCount++;
+    else adjacency.get(edge.source)!.add(edge.target);
   }
-  const componentKey = (index: number) => components[index][0]; const queue = indegree.map((degree, index) => ({ degree, index })).filter(item => item.degree === 0).map(item => item.index).sort((a, b) => componentKey(a).localeCompare(componentKey(b)));
-  const componentLayer = components.map(() => 0);
+
+  const indegree = new Map(items.map(item => [item.id, 0]));
+  for (const targets of adjacency.values()) for (const target of targets) indegree.set(target, indegree.get(target)! + 1);
+  const queue = items.filter(item => indegree.get(item.id) === 0).map(item => item.id).sort((a, b) => itemById.get(a)!.position.y - itemById.get(b)!.position.y || a.localeCompare(b));
+  const layerOf = new Map(items.map(item => [item.id, 0]));
   while (queue.length) {
     const current = queue.shift()!;
-    for (const target of [...successors.get(current)!].sort((a, b) => componentKey(a).localeCompare(componentKey(b)))) {
-      componentLayer[target] = Math.max(componentLayer[target], Math.min(200, componentLayer[current] + 1));
-      if (--indegree[target] === 0) { queue.push(target); queue.sort((a, b) => componentKey(a).localeCompare(componentKey(b))); }
+    for (const target of [...adjacency.get(current)!].sort()) {
+      layerOf.set(target, Math.max(layerOf.get(target)!, Math.min(200, layerOf.get(current)! + 1)));
+      indegree.set(target, indegree.get(target)! - 1);
+      if (indegree.get(target) === 0) { queue.push(target); queue.sort((a, b) => itemById.get(a)!.position.y - itemById.get(b)!.position.y || a.localeCompare(b)); }
     }
   }
-  const layerOf = new Map(items.map(item => [item.id, componentLayer[componentOf.get(item.id)!]]));
   const inbound = new Map(items.map(item => [item.id, [] as string[]]));
   for (const edge of diagram.edges) if (ids.has(edge.source) && ids.has(edge.target)) inbound.get(edge.target)!.push(edge.source);
   const byLayer = new Map<number, LayoutItem[]>();
@@ -78,11 +74,11 @@ export function tidyDiagram(diagram: Diagram): Diagram {
     group.forEach((item, index) => order.set(item.id, index));
   }
 
-  const layers = [...byLayer.keys()].sort((a, b) => a - b); const rowGap = 90;
+  const layers = [...byLayer.keys()].sort((a, b) => a - b); const rowGap = 90; const returnGutter = returnEdgeCount ? 110 + (returnEdgeCount - 1) * 42 : 0;
   const heights = new Map(layers.map(layer => [layer, byLayer.get(layer)!.reduce((sum, item) => sum + layoutSize(item).height, 0) + Math.max(0, byLayer.get(layer)!.length - 1) * rowGap]));
   const tallest = Math.max(...heights.values()); const positions = new Map<string, { x: number; y: number }>(); let x = 60;
   for (const layer of layers) {
-    const group = byLayer.get(layer)!; let y = 60 + (tallest - heights.get(layer)!) / 2; const width = Math.max(...group.map(item => layoutSize(item).width));
+    const group = byLayer.get(layer)!; let y = 60 + returnGutter + (tallest - heights.get(layer)!) / 2; const width = Math.max(...group.map(item => layoutSize(item).width));
     for (const item of group) { positions.set(item.id, { x, y }); y += layoutSize(item).height + rowGap; }
     const labels = diagram.edges.filter(edge => layerOf.get(edge.source) === layer && (layerOf.get(edge.target) ?? layer) > layer).map(edge => edge.label.length);
     const labelClearance = Math.min(330, Math.max(190, 55 + Math.max(0, ...labels) * 7)); x += width + labelClearance;

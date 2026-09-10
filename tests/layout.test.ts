@@ -36,3 +36,11 @@ test('geometry audit records ports and reports connector, label, and node collis
   assert.ok(audit.complaints.some(complaint => complaint.kind === 'label-node-overlap' && complaint.nodeId === 'obstruction'));
   assert.ok(audit.complaints.some(complaint => complaint.kind === 'connector-through-node' && complaint.nodeId === 'obstruction'));
 });
+test('tidy preserves a forward review flow and routes its cycle-closing edge outside the graph', () => {
+  const source = structuredClone(exampleDocument.diagrams.find(diagram => diagram.id === 'review_flow')!); const tidy = tidyDiagram(source); const audit = inspectDiagramGeometry(tidy);
+  assert.deepEqual(tidyDiagram(tidy), tidy);
+  const position = (id: string) => tidy.nodes.find(node => node.id === id)!.position;
+  assert.ok(position('read').x < position('propose').x); assert.ok(position('propose').x < position('review').x); assert.ok(position('review').x < position('accept').x);
+  const stale = audit.connectors.find(connector => connector.id === 'stale')!; assert.equal(stale.sourceSide, 'top'); assert.equal(stale.targetSide, 'top'); assert.ok(stale.labelPoint.y >= 20); assert.ok(stale.labelPoint.y < Math.min(...audit.nodes.map(node => node.bounds.top)));
+  assert.deepEqual(audit.complaints, []);
+});
