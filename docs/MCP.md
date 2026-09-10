@@ -50,7 +50,7 @@ Stale base revisions are rejected on proposal creation and acceptance. Error res
 
 | Tool | Input | Result |
 | --- | --- | --- |
-| `get_history` | `{}` | Newest-first revision metadata, up to 200 reachable entries |
+| `get_history` | `{}` | Newest-first logical design revision metadata; layout-only revisions are omitted |
 | `compare_revisions` | `before`, `after` UUIDs | Structural changes between saved snapshots |
 | `read_code_region` | `path`, `startLine`, optional `endLine` | Workspace-relative code, inclusive line bounds, at most 200 lines |
 

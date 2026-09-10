@@ -21,7 +21,7 @@ export type ArchEdge = z.infer<typeof edgeSchema>;
 export type DiagramImport = z.infer<typeof importSchema>;
 export type Diagram = z.infer<typeof diagramSchema>;
 export type ArchDocument = z.infer<typeof documentSchema>;
-export type Revision = { revision: string; parentRevision: string | null; createdAt: string; author: string; rationale: string; document: ArchDocument };
+export type Revision = { revision: string; parentRevision: string | null; createdAt: string; author: string; rationale: string; revisionType?: 'design' | 'layout'; document: ArchDocument };
 export type Proposal = { id: string; baseRevision: string; createdAt: string; author: string; rationale: string; document: ArchDocument; status: 'pending' | 'accepted' | 'rejected' };
 
 export function validateDocument(input: unknown): ArchDocument {

@@ -23,6 +23,7 @@ export function createApp(store: Store, uiDir: string, port: number, projectCata
   app.use(express.json({ limit: '5mb' }));
   app.use('/api', (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
   const save = z.object({ document: documentSchema, baseRevision: z.string(), author: z.string().min(1).max(200), rationale: z.string().min(1).max(10000) }).strict();
+  const layoutSave = z.object({ document: documentSchema, baseRevision: z.string(), author: z.string().min(1).max(200) }).strict();
   const workspaceResponse = async () => { const active = currentStore(); const revision = await active.read(); await projectCatalog.ensure(active.root, revision.document.name); return { ...revision, workspacePath: active.root, projects: await projectCatalog.list(), mcpConfig: { mcpServers: { atlas: { command: process.execPath, args: [path.resolve(uiDir, '../server/cli.js'), 'mcp', '--workspace', active.root] } } } }; };
   app.get('/api/workspace', async (_req, res) => { res.json(await workspaceResponse()); });
   app.post('/api/workspace/open', async (req, res) => {
@@ -37,6 +38,7 @@ export function createApp(store: Store, uiDir: string, port: number, projectCata
     res.json(await workspaceResponse());
   });
   app.post('/api/save', async (req, res) => { const v = save.parse(req.body); res.json(await currentStore().commit(validateDocument(v.document), v.baseRevision, v.author, v.rationale)); });
+  app.post('/api/save-layout', async (req, res) => { const v = layoutSave.parse(req.body); res.json(await currentStore().commitLayout(validateDocument(v.document), v.baseRevision, v.author)); });
   app.get('/api/history', async (_req, res) => { res.json(await currentStore().history()); });
   app.get('/api/revisions/:id', async (req, res) => { res.json(await currentStore().revision(req.params.id)); });
   app.get('/api/proposals', async (_req, res) => { res.json((await currentStore().proposals()).map(({ document: _, ...meta }) => meta)); });

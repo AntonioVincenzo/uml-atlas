@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { validateDocument, emptyDocument, type ArchDocument, type Revision, type Proposal } from '../core/model.js';
 import { diffDocuments, stable } from '../core/diff.js';
 export class ConflictError extends Error {}
+export const LAYOUT_REVISION_RATIONALE = 'Layout adjustment (verified: no logical graph changes).';
 export class Store {
   root: string;
   constructor(root: string) { this.root = path.resolve(root); }
@@ -30,7 +31,7 @@ export class Store {
       await mkdir(path.join(this.metadata, 'proposals'), { recursive: true });
       try { const current = await this.read(); await this.atomic(path.join(this.metadata, 'revisions', `${current.revision}.json`), current); return current; }
       catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; }
-      const first: Revision = { revision: randomUUID(), parentRevision: null, createdAt: new Date().toISOString(), author: 'Atlas', rationale: 'Initialize workspace', document: validateDocument(seed) };
+      const first: Revision = { revision: randomUUID(), parentRevision: null, createdAt: new Date().toISOString(), author: 'Atlas', rationale: 'Initialize workspace', revisionType: 'design', document: validateDocument(seed) };
       await this.writeRevision(first); return first;
     });
   }
@@ -43,10 +44,13 @@ export class Store {
   async history(): Promise<Omit<Revision, 'document'>[]> {
     let current: Revision | undefined = await this.read(); const result: Omit<Revision, 'document'>[] = []; const seen = new Set<string>();
     while (current && result.length < 200 && !seen.has(current.revision)) {
-      seen.add(current.revision); const { document: _, ...meta } = current; result.push(meta);
-      if (!current.parentRevision) break;
-      try { current = await this.revision(current.parentRevision); }
-      catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; break; }
+      seen.add(current.revision); let parent: Revision | undefined;
+      if (current.parentRevision) try { parent = await this.revision(current.parentRevision); }
+      catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; }
+      const changes = !current.revisionType && parent ? diffDocuments(parent.document, current.document) : [];
+      const layoutOnly = current.revisionType === 'layout' || (!current.revisionType && changes.length > 0 && changes.every(change => change.kind === 'layout'));
+      if (!layoutOnly) { const { document: _, ...meta } = current; result.push(meta); }
+      current = parent;
     }
     return result;
   }
@@ -57,17 +61,23 @@ export class Store {
   private checkBase(current: Revision, baseRevision: string) {
     if (current.revision !== baseRevision) throw new ConflictError('The architecture changed since this edit began. Export your draft, reload the latest revision, and reapply or propose the change again.');
   }
-  private async commitUnlocked(document: ArchDocument, baseRevision: string, author: string, rationale: string) {
+  private async commitUnlocked(document: ArchDocument, baseRevision: string, author: string, rationale: string, requestedType?: 'design' | 'layout') {
     const current = await this.read(); this.checkBase(current, baseRevision);
     const doc = validateDocument(document);
     if (stable(current.document) === stable(doc)) return current;
+    const changes = diffDocuments(current.document, doc); const layoutOnly = changes.length > 0 && changes.every(change => change.kind === 'layout');
+    if (requestedType === 'layout' && !layoutOnly) throw new Error('Layout-only save rejected because the graph contains logical changes');
+    const revisionType = layoutOnly ? 'layout' : 'design'; const savedRationale = layoutOnly ? LAYOUT_REVISION_RATIONALE : rationale;
     // Ensure an imported head can become the base of a complete new local history.
     await this.atomic(path.join(this.metadata, 'revisions', `${current.revision}.json`), current);
-    const next: Revision = { revision: randomUUID(), parentRevision: current.revision, createdAt: new Date().toISOString(), author, rationale, document: doc };
+    const next: Revision = { revision: randomUUID(), parentRevision: current.revision, createdAt: new Date().toISOString(), author, rationale: savedRationale, revisionType, document: doc };
     await this.writeRevision(next); return next;
   }
   async commit(document: ArchDocument, baseRevision: string, author: string, rationale: string) {
     return this.locked(() => this.commitUnlocked(document, baseRevision, author, rationale));
+  }
+  async commitLayout(document: ArchDocument, baseRevision: string, author: string) {
+    return this.locked(() => this.commitUnlocked(document, baseRevision, author, LAYOUT_REVISION_RATIONALE, 'layout'));
   }
   async propose(document: ArchDocument, baseRevision: string, author: string, rationale: string) {
     return this.locked(async () => {

@@ -8,8 +8,9 @@ import { Store } from '../src/server/store';
 import type { AddressInfo } from 'node:net';
 import { createServer } from 'node:http';
 import { ProjectCatalog } from '../src/server/projects';
+import { exampleDocument } from '../src/core/example';
 test('HTTP API guards mutations, validates saves, and isolates switched projects', async t => {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'atlas-http-')); const secondRoot = await mkdtemp(path.join(os.tmpdir(), 'atlas-http-second-')); t.after(() => Promise.all([rm(root, { recursive: true, force: true }), rm(secondRoot, { recursive: true, force: true })]).then(() => {})); const store = new Store(root); const initial = await store.init(); const catalog = new ProjectCatalog(path.join(root, '.catalog', 'projects.json'));
+  const root = await mkdtemp(path.join(os.tmpdir(), 'atlas-http-')); const secondRoot = await mkdtemp(path.join(os.tmpdir(), 'atlas-http-second-')); t.after(() => Promise.all([rm(root, { recursive: true, force: true }), rm(secondRoot, { recursive: true, force: true })]).then(() => {})); const store = new Store(root); const initial = await store.init(exampleDocument); const catalog = new ProjectCatalog(path.join(root, '.catalog', 'projects.json'));
   const server = createServer().listen(0, '127.0.0.1'); await new Promise<void>(r => server.once('listening', r)); t.after(() => new Promise<void>((r, reject) => server.close(e => e ? reject(e) : r()))); const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   server.on('request', createApp(store, root, (server.address() as AddressInfo).port, catalog));
   const headers = { 'Content-Type': 'application/json' };
@@ -18,6 +19,9 @@ test('HTTP API guards mutations, validates saves, and isolates switched projects
   assert.equal((await fetch(url + '/api/save', { method: 'POST', headers, body: '{}' })).status, 403);
   const mutationHeaders = { ...headers, 'X-Atlas-Client': 'studio' }; const doc = structuredClone(initial.document); doc.name = 'Changed';
   const saved = await fetch(url + '/api/save', { method: 'POST', headers: mutationHeaders, body: JSON.stringify({ document: doc, baseRevision: initial.revision, author: 'Test', rationale: 'Rename' }) }); assert.equal(saved.status, 200);
+  const savedRevision = await saved.json(); const arranged = structuredClone(savedRevision.document); arranged.diagrams[0].nodes[0].position.x += 40;
+  const layoutSaved = await fetch(url + '/api/save-layout', { method: 'POST', headers: mutationHeaders, body: JSON.stringify({ document: arranged, baseRevision: savedRevision.revision, author: 'Test' }) }); assert.equal(layoutSaved.status, 200); assert.equal((await layoutSaved.json()).revisionType, 'layout');
+  const illegalLayout = structuredClone(arranged); illegalLayout.name = 'Not layout'; assert.equal((await fetch(url + '/api/save-layout', { method: 'POST', headers: mutationHeaders, body: JSON.stringify({ document: illegalLayout, baseRevision: (await (await fetch(url + '/api/workspace', { headers })).json()).revision, author: 'Test' }) })).status, 400);
   const stale = await fetch(url + '/api/save', { method: 'POST', headers: mutationHeaders, body: JSON.stringify({ document: doc, baseRevision: initial.revision, author: 'Test', rationale: 'Stale' }) }); assert.equal(stale.status, 409);
   assert.equal((await fetch(url + '/api/save', { method: 'POST', headers: mutationHeaders, body: '{}' })).status, 400);
   assert.equal((await fetch(url + '/api/workspace/open', { method: 'POST', headers: mutationHeaders, body: JSON.stringify({ path: 'relative/project' }) })).status, 400);
