@@ -10,7 +10,7 @@ export function connectorLabelSize(text: string) {
 }
 
 export function layoutSize(item: LayoutItem) {
-  if (isImport(item)) return { width: 270, height: 150 };
+  if (isImport(item)) return { width: 270, height: 187 };
   const visible = item.members.slice(0, 6); const remaining = item.members.length > visible.length ? 1 : 0; const hasMeta = item.codeLinks.length > 0 || !!item.snippet;
   const compartmentHeight = (lines: number, meta = false) => Math.max(34, 17 + lines * 17.5 + (meta ? 22 : 0));
   if (item.kind === 'class') {
@@ -107,7 +107,17 @@ export function tidyDiagram(diagram: Diagram): Diagram {
   }
   const parent = new Map(items.map(item => [item.id, item.id])); const find = (id: string): string => { const next = parent.get(id)!; if (next === id) return id; const root = find(next); parent.set(id, root); return root; };
   const unite = (left: string, right: string) => { const a = find(left); const b = find(right); if (a !== b) parent.set(b, a); };
-  for (const [source, targets] of adjacency) for (const target of targets) if (targets.size === 1 && inbound.get(target)!.length === 1) unite(source, target);
+  const originalCenter = (id: string) => itemById.get(id)!.position.y + layoutSize(itemById.get(id)!).height / 2;
+  const preferredTarget = new Map<string, string>(); const preferredSource = new Map<string, string>();
+  for (const [source, targets] of adjacency) {
+    const ranked = [...targets].sort((left, right) => inbound.get(left)!.length - inbound.get(right)!.length || Math.abs(originalCenter(source) - originalCenter(left)) - Math.abs(originalCenter(source) - originalCenter(right)) || left.localeCompare(right));
+    if (ranked[0]) preferredTarget.set(source, ranked[0]);
+  }
+  for (const [target, sources] of inbound) {
+    const ranked = [...sources].sort((left, right) => adjacency.get(left)!.size - adjacency.get(right)!.size || Math.abs(originalCenter(target) - originalCenter(left)) - Math.abs(originalCenter(target) - originalCenter(right)) || left.localeCompare(right));
+    if (ranked[0]) preferredSource.set(target, ranked[0]);
+  }
+  for (const [source, target] of preferredTarget) if (preferredSource.get(target) === source) unite(source, target);
   const aligned = new Map<string, string[]>();
   for (const item of items) { const root = find(item.id); aligned.set(root, [...(aligned.get(root) ?? []), item.id]); }
   for (const group of aligned.values()) if (group.length > 1) { const shared = group.reduce((sum, id) => sum + centers.get(id)!, 0) / group.length; group.forEach(id => centers.set(id, shared)); }

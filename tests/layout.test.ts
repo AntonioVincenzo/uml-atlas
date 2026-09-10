@@ -6,6 +6,7 @@ import { inspectDiagramGeometry } from '../src/core/geometry';
 import { newNode, type Diagram } from '../src/core/model';
 test('expanded references push neighboring nodes outside their visual container without editing coordinates', () => {
   const doc = structuredClone(exampleDocument); const d = doc.diagrams[0]; const reference = d.imports[0]; const store = d.nodes.find(n => n.id === 'store')!;
+  assert.equal(layoutSize(reference).height, 187);
   assert.deepEqual(expansionOffset(doc, d, store), { x: 0, y: 0 }); reference.expanded = true;
   const originalX = store.position.x; const shift = expansionOffset(doc, d, store); const bounds = expansionBounds(doc, reference);
   assert.ok(store.position.x + shift.x > reference.position.x + bounds.width); assert.equal(store.position.x, originalX); assert.deepEqual(expansionOffset(doc, d, reference), { x: 0, y: 0 });
@@ -59,6 +60,24 @@ test('routing uses vertical ports for row-separated neighbors and horizontal por
   ] };
   const audit = inspectDiagramGeometry(diagram); const across = audit.connectors.find(connector => connector.id === 'across')!; const diagonal = audit.connectors.find(connector => connector.id === 'diagonal')!;
   assert.deepEqual({ source: across.sourceSide, target: across.targetSide }, { source: 'right', target: 'left' }); assert.deepEqual({ source: diagonal.sourceSide, target: diagonal.targetSide }, { source: 'bottom', target: 'top' });
+});
+test('tidy aligns mutual preferred neighbors and leaves distinct ports for a cross-track edge', () => {
+  const node = (id: string, kind: 'actor' | 'component' | 'interface', y: number) => ({ ...newNode(id, kind, { x: 0, y }), label: id });
+  const diagram: Diagram = { id: 'preferred-neighbors', name: 'Preferred neighbors', description: '', imports: [], nodes: [
+    node('designer', 'actor', 0), node('studio', 'component', 0), node('agent', 'actor', 200), node('mcp', 'interface', 200), node('workspace', 'component', 0), node('core', 'component', 200),
+  ], edges: [
+    { id: 'design', source: 'designer', target: 'studio', kind: 'association', label: 'design', sourceMultiplicity: '', targetMultiplicity: '' },
+    { id: 'tools', source: 'agent', target: 'mcp', kind: 'association', label: 'tools', sourceMultiplicity: '', targetMultiplicity: '' },
+    { id: 'studio-workspace', source: 'studio', target: 'workspace', kind: 'dependency', label: 'operations', sourceMultiplicity: '', targetMultiplicity: '' },
+    { id: 'studio-core', source: 'studio', target: 'core', kind: 'dependency', label: 'edits', sourceMultiplicity: '', targetMultiplicity: '' },
+    { id: 'mcp-core', source: 'mcp', target: 'core', kind: 'dependency', label: 'proposals', sourceMultiplicity: '', targetMultiplicity: '' },
+  ] };
+  const audit = inspectDiagramGeometry(tidyDiagram(diagram)); const bounds = new Map(audit.nodes.map(item => [item.id, item.bounds])); const centerY = (id: string) => (bounds.get(id)!.top + bounds.get(id)!.bottom) / 2;
+  assert.equal(centerY('mcp'), centerY('core')); assert.equal(centerY('studio'), centerY('workspace'));
+  const route = (id: string) => audit.connectors.find(connector => connector.id === id)!;
+  assert.deepEqual({ source: route('studio-core').sourceSide, target: route('studio-core').targetSide }, { source: 'bottom', target: 'top' });
+  assert.deepEqual({ source: route('studio-workspace').sourceSide, target: route('studio-workspace').targetSide }, { source: 'right', target: 'left' });
+  assert.deepEqual({ source: route('mcp-core').sourceSide, target: route('mcp-core').targetSide }, { source: 'right', target: 'left' }); assert.deepEqual(audit.complaints, []);
 });
 test('tidy preserves a forward review flow and routes its cycle-closing edge outside the graph', () => {
   const source = structuredClone(exampleDocument.diagrams.find(diagram => diagram.id === 'review_flow')!); const tidy = tidyDiagram(source); const audit = inspectDiagramGeometry(tidy);
