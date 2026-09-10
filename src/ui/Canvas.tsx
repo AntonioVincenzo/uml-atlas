@@ -78,10 +78,10 @@ function UmlEdge(props: EdgeProps) {
 const edgeTypes = { uml: UmlEdge };
 export function Markers() { return <svg className="marker-definitions"><defs>
   <marker id="atlas-arrow" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="10" markerHeight="10" orient="auto"><path d="M1 1 L11 6 L1 11 Z" fill="#78909d"/></marker>
-  <marker id="atlas-openarrow" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="10" markerHeight="10" orient="auto"><path d="M1 1 L11 6 L1 11" fill="none" stroke="#78909d" strokeWidth="1.5"/></marker>
-  <marker id="atlas-triangle" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="14" markerHeight="14" orient="auto"><path d="M1 1 L13 7 L1 13 Z" fill="white" stroke="#78909d"/></marker>
+  <marker id="atlas-openarrow" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="10" markerHeight="10" orient="auto"><path d="M1 1 L11 6 L1 11" fill="none" stroke="#78909d" strokeWidth="1.5" strokeDasharray="none"/></marker>
+  <marker id="atlas-triangle" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="14" markerHeight="14" orient="auto"><path d="M1 1 L13 7 L1 13 Z" fill="white" stroke="#78909d" strokeDasharray="none"/></marker>
   <marker id="atlas-diamond" viewBox="0 0 16 12" refX="0" refY="6" markerWidth="16" markerHeight="12" orient="auto"><path d="M0 6 L8 0 L16 6 L8 12 Z" fill="#78909d"/></marker>
-  <marker id="atlas-hollow" viewBox="0 0 16 12" refX="0" refY="6" markerWidth="16" markerHeight="12" orient="auto"><path d="M0 6 L8 0 L16 6 L8 12 Z" fill="white" stroke="#78909d"/></marker>
+  <marker id="atlas-hollow" viewBox="0 0 16 12" refX="0" refY="6" markerWidth="16" markerHeight="12" orient="auto"><path d="M0 6 L8 0 L16 6 L8 12 Z" fill="white" stroke="#78909d" strokeDasharray="none"/></marker>
 </defs></svg>; }
 export default function Canvas({ document, diagram, onSelect, onMove, onConnect, onOpen, onExpand, changes = EMPTY_CHANGES, readOnly = false, focusId }: {
   document: ArchDocument; diagram: Diagram; onSelect?: (kind: 'node' | 'edge' | 'import', id: string) => void;
