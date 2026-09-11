@@ -62,7 +62,7 @@ function EmbedNode({ data, selected }: NodeProps) {
     <Ports/>
     <div className="embed-heading"><span>«diagramRef»</span>{n.change && <b>{n.change}</b>}</div>
     <div className="node-label">{n.label}</div>
-    {!n.expanded && <><div className="embed-preview">{n.preview?.slice(0, 3).map((x: string, i: number) => <span key={i}>{x}</span>)}</div><div className="node-meta">{n.count} elements · {n.name}</div></>}
+    {!n.expanded && <>{n.description ? <div className="embed-description">{n.description}</div> : <div className="embed-preview">{n.preview?.slice(0, 3).map((x: string, i: number) => <span key={i}>{x}</span>)}</div>}<div className="node-meta">{n.count} elements · {n.name}</div></>}
     <div className="embed-actions nodrag nopan"><button onClick={() => n.onOpen(n.diagramId)}>Open diagram ↗</button><button onClick={() => n.onExpand(n.localId)}>{n.expanded ? 'Collapse' : 'Expand'}</button></div>
   </div>;
 }
@@ -102,7 +102,7 @@ export default function Canvas({ document, diagram, onSelect, onMove, onConnect,
         const { minX, minY, width, height } = expansionBounds(document, i);
         const visualOffset = parentId ? { x: 0, y: 0 } : expansionOffset(document, d, i);
         const expanded = i.expanded && !parentId;
-        nodes.push({ id: prefix + i.id, type: 'embed', parentId, position: { x: i.position.x + offset.x + visualOffset.x, y: i.position.y + offset.y + visualOffset.y }, style: { width: expanded ? width : 270, height: expanded ? height : undefined }, data: { ...i, visualOffset, expanded, width, height, localId: i.id, name: child.name, count: childItems.length, preview: child.nodes.map(n => n.label), change: change(i.id, d.id), onOpen, onExpand: !parentId && !readOnly ? onExpand ?? (() => {}) : () => onOpen(i.diagramId) }, draggable: !readOnly && !parentId, selectable: !parentId, selected: !parentId && focusId === i.id, zIndex: expanded ? -1 : 0 });
+        nodes.push({ id: prefix + i.id, type: 'embed', parentId, position: { x: i.position.x + offset.x + visualOffset.x, y: i.position.y + offset.y + visualOffset.y }, style: { width: expanded ? width : 270, height: expanded ? height : undefined }, data: { ...i, visualOffset, expanded, width, height, localId: i.id, name: child.name, description: child.description, count: childItems.length, preview: child.nodes.map(n => n.label), change: change(i.id, d.id), onOpen, onExpand: !parentId && !readOnly ? onExpand ?? (() => {}) : () => onOpen(i.diagramId) }, draggable: !readOnly && !parentId, selectable: !parentId, selected: !parentId && focusId === i.id, zIndex: expanded ? -1 : 0 });
         if (expanded) collect(child, `${prefix}${i.id}__`, prefix + i.id, { x: 35 - minX, y: 120 - minY });
       }
       const rectangle = (node: Node): Rect => { const estimated = layoutSize(node.data as any); const width = Number(node.style?.width ?? estimated.width); const height = Number(node.style?.height ?? estimated.height); return { left: node.position.x, top: node.position.y, right: node.position.x + width, bottom: node.position.y + height }; };

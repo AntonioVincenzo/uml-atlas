@@ -10,7 +10,7 @@ export function connectorLabelSize(text: string) {
 }
 
 export function layoutSize(item: LayoutItem) {
-  if (isImport(item)) return { width: 270, height: 187 };
+  if (isImport(item)) return { width: 270, height: 205 };
   const visible = item.members.slice(0, 6); const remaining = item.members.length > visible.length ? 1 : 0; const hasMeta = item.codeLinks.length > 0 || !!item.snippet;
   const compartmentHeight = (lines: number, meta = false) => Math.max(34, 17 + lines * 17.5 + (meta ? 22 : 0));
   if (item.kind === 'class') {

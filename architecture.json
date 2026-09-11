@@ -1,14 +1,111 @@
 {
-  "revision": "8f90b778-4cc6-4d21-967e-492d0cdc28b3",
-  "parentRevision": "3943b872-9ba1-4d3d-84bb-4713b75236bc",
-  "createdAt": "2026-09-08T22:45:39.701Z",
-  "author": "Designer",
-  "rationale": "rearranged nodes, no logical change.",
+  "revision": "fd980a8e-8136-4340-b15d-7612efba201e",
+  "parentRevision": "fb1e99b0-a8ed-408f-b88b-81099e65f755",
+  "createdAt": "2026-09-11T19:57:55.489Z",
+  "author": "Atlas orientation designer",
+  "rationale": "Add a project overview as the first diagram. Its reusable diagram cards state what each detailed view explains and show how system design, review, repository evidence, and the epistemic contract relate. SDLC, delivery, and design-record views remain deferred until the project has enough process to make them useful.",
+  "revisionType": "design",
   "document": {
     "schemaVersion": 1,
     "id": "atlas",
     "name": "Atlas · Architecture studio",
     "diagrams": [
+      {
+        "id": "project_overview",
+        "name": "Project overview",
+        "description": "Start here. Each card answers one project-level question, states the purpose of its diagram, and opens the detailed view.",
+        "nodes": [],
+        "edges": [
+          {
+            "id": "map_shared_rules",
+            "source": "map_system",
+            "target": "map_core",
+            "kind": "dependency",
+            "label": "shared rules",
+            "sourceMultiplicity": "",
+            "targetMultiplicity": ""
+          },
+          {
+            "id": "map_change_review",
+            "source": "map_system",
+            "target": "map_review",
+            "kind": "dependency",
+            "label": "change review",
+            "sourceMultiplicity": "",
+            "targetMultiplicity": ""
+          },
+          {
+            "id": "map_repository_evidence",
+            "source": "map_system",
+            "target": "map_analysis",
+            "kind": "dependency",
+            "label": "repository evidence",
+            "sourceMultiplicity": "",
+            "targetMultiplicity": ""
+          },
+          {
+            "id": "map_claim_types",
+            "source": "map_analysis",
+            "target": "map_epistemic",
+            "kind": "dependency",
+            "label": "claim types",
+            "sourceMultiplicity": "",
+            "targetMultiplicity": ""
+          }
+        ],
+        "imports": [
+          {
+            "id": "map_system",
+            "diagramId": "overview",
+            "label": "How Atlas fits together",
+            "position": {
+              "x": 60,
+              "y": 140
+            },
+            "expanded": false
+          },
+          {
+            "id": "map_core",
+            "diagramId": "model_core",
+            "label": "What every editor shares",
+            "position": {
+              "x": 60,
+              "y": -190
+            },
+            "expanded": false
+          },
+          {
+            "id": "map_review",
+            "diagramId": "review_flow",
+            "label": "How proposed changes are reviewed",
+            "position": {
+              "x": 60,
+              "y": 470
+            },
+            "expanded": false
+          },
+          {
+            "id": "map_analysis",
+            "diagramId": "recovery_pipeline",
+            "label": "How repository evidence is produced",
+            "position": {
+              "x": 560,
+              "y": 140
+            },
+            "expanded": false
+          },
+          {
+            "id": "map_epistemic",
+            "diagramId": "epistemic_contract",
+            "label": "How Atlas labels what it knows",
+            "position": {
+              "x": 1001,
+              "y": 140
+            },
+            "expanded": false
+          }
+        ]
+      },
       {
         "id": "overview",
         "name": "System architecture",
@@ -19,8 +116,8 @@
             "kind": "actor",
             "label": "System designer",
             "position": {
-              "x": 20,
-              "y": 140
+              "x": 60,
+              "y": 87
             },
             "description": "Designs and reviews systems visually.",
             "stereotype": "",
@@ -32,15 +129,19 @@
             "kind": "component",
             "label": "Architecture studio",
             "position": {
-              "x": 330,
-              "y": 70
+              "x": 565.6,
+              "y": 60
             },
-            "description": "Interactive canvas, UML source, inspector, and visual review.",
+            "description": "Browser editor for canvas, UML and JSON source, project selection, collision-aware layout, inspection, and visual review.",
             "stereotype": "",
             "members": [],
             "codeLinks": [
               {
                 "path": "src/ui/App.tsx",
+                "startLine": 1
+              },
+              {
+                "path": "src/ui/Canvas.tsx",
                 "startLine": 1
               }
             ]
@@ -50,10 +151,10 @@
             "kind": "actor",
             "label": "Any MCP agent",
             "position": {
-              "x": 20,
-              "y": 420
+              "x": 60,
+              "y": 323.5
             },
-            "description": "Reads the model, proposes changes with a rationale, and receives structured diffs.",
+            "description": "Reads, analyzes, validates, compares, and proposes architecture through the project-scoped MCP surface.",
             "stereotype": "",
             "members": [],
             "codeLinks": []
@@ -63,10 +164,10 @@
             "kind": "interface",
             "label": "MCP server",
             "position": {
-              "x": 330,
-              "y": 390
+              "x": 565.6,
+              "y": 296.5
             },
-            "description": "Project-scoped tools exposed over stdio.",
+            "description": "Project-scoped architecture, layout-analysis, validation, proposal, history, comparison, and bounded code-reading tools over stdio.",
             "stereotype": "",
             "members": [],
             "codeLinks": [
@@ -81,15 +182,55 @@
             "kind": "database",
             "label": "Revision store",
             "position": {
-              "x": 1080,
-              "y": 220
+              "x": 1643.8000000000002,
+              "y": 296.5
             },
-            "description": "Atomic JSON revisions and proposals on the local filesystem.",
+            "description": "Atomic project-local revision and proposal history, concurrency checks, and bounded source-region reads.",
             "stereotype": "",
             "members": [],
             "codeLinks": [
               {
                 "path": "src/server/store.ts",
+                "startLine": 1
+              }
+            ]
+          },
+          {
+            "id": "workspace_api",
+            "kind": "component",
+            "label": "Local workspace API",
+            "position": {
+              "x": 1108.2,
+              "y": 60
+            },
+            "description": "Serves the studio and mediates project switching, saves, history, proposal review, and bounded code reads.",
+            "stereotype": "local service",
+            "members": [],
+            "codeLinks": [
+              {
+                "path": "src/server/http.ts",
+                "startLine": 1
+              },
+              {
+                "path": "src/server/cli.ts",
+                "startLine": 1
+              }
+            ]
+          },
+          {
+            "id": "project_catalog",
+            "kind": "database",
+            "label": "Onboarded project catalog",
+            "position": {
+              "x": 1643.8000000000002,
+              "y": 60
+            },
+            "description": "Persistent registry of available Atlas workspaces and their most recently opened state.",
+            "stereotype": "local registry",
+            "members": [],
+            "codeLinks": [
+              {
+                "path": "src/server/projects.ts",
                 "startLine": 1
               }
             ]
@@ -110,7 +251,7 @@
             "source": "agent",
             "target": "mcp",
             "kind": "association",
-            "label": "read / propose",
+            "label": "read / analyze / propose",
             "sourceMultiplicity": "",
             "targetMultiplicity": ""
           },
@@ -140,6 +281,24 @@
             "label": "save with revision check",
             "sourceMultiplicity": "",
             "targetMultiplicity": ""
+          },
+          {
+            "id": "studio_api",
+            "source": "studio",
+            "target": "workspace_api",
+            "kind": "dependency",
+            "label": "project + revision operations",
+            "sourceMultiplicity": "",
+            "targetMultiplicity": ""
+          },
+          {
+            "id": "catalog_access",
+            "source": "workspace_api",
+            "target": "project_catalog",
+            "kind": "dependency",
+            "label": "onboard / switch",
+            "sourceMultiplicity": "",
+            "targetMultiplicity": ""
           }
         ],
         "imports": [
@@ -148,8 +307,8 @@
             "diagramId": "model_core",
             "label": "Shared model core",
             "position": {
-              "x": 700,
-              "y": 180
+              "x": 1108.2,
+              "y": 256
             },
             "expanded": false
           }
@@ -165,10 +324,10 @@
             "kind": "class",
             "label": "Architecture document",
             "position": {
-              "x": 340,
-              "y": 160
+              "x": 550,
+              "y": 310
             },
-            "description": "Portable project document. Each document contains one or more reusable diagrams.",
+            "description": "Portable project document containing reusable diagrams, stable graph identities, and optional code evidence.",
             "stereotype": "",
             "members": [
               "+schemaVersion: 1",
@@ -192,8 +351,8 @@
             "kind": "component",
             "label": "UML codec",
             "position": {
-              "x": 20,
-              "y": 30
+              "x": 550,
+              "y": 20
             },
             "description": "Converts the supported PlantUML-style subset to and from JSON without losing IDs or metadata.",
             "stereotype": "",
@@ -210,8 +369,8 @@
             "kind": "component",
             "label": "Validation",
             "position": {
-              "x": -180.33500837520938,
-              "y": 276.9179229480737
+              "x": 60,
+              "y": 310
             },
             "description": "Checks IDs, endpoints, import cycles and inheritance cycles.",
             "stereotype": "",
@@ -228,8 +387,8 @@
             "kind": "component",
             "label": "Structural diff",
             "position": {
-              "x": -62.81407035175876,
-              "y": 418.45896147403687
+              "x": 550,
+              "y": 650
             },
             "description": "Compares stable IDs and separates layout-only edits from design changes.",
             "stereotype": "",
@@ -246,8 +405,8 @@
             "kind": "class",
             "label": "Diagram",
             "position": {
-              "x": 700,
-              "y": 90
+              "x": 1050,
+              "y": 310
             },
             "description": "A named graph owns nodes, relationships and references to other diagrams.",
             "stereotype": "",
@@ -263,6 +422,28 @@
                 "path": "src/core/model.ts",
                 "startLine": 16,
                 "endLine": 18
+              }
+            ]
+          },
+          {
+            "id": "layout_geometry",
+            "kind": "component",
+            "label": "Layout and geometry",
+            "position": {
+              "x": 1050,
+              "y": 20
+            },
+            "description": "Deterministic node placement, four-side connector routing, label bounds, and typed collision complaints.",
+            "stereotype": "diagram analysis",
+            "members": [],
+            "codeLinks": [
+              {
+                "path": "src/core/layout.ts",
+                "startLine": 1
+              },
+              {
+                "path": "src/core/geometry.ts",
+                "startLine": 1
               }
             ]
           }
@@ -303,6 +484,15 @@
             "label": "contains",
             "sourceMultiplicity": "1",
             "targetMultiplicity": "1..*"
+          },
+          {
+            "id": "analyzes_layout",
+            "source": "layout_geometry",
+            "target": "diagram",
+            "kind": "dependency",
+            "label": "arranges + audits",
+            "sourceMultiplicity": "",
+            "targetMultiplicity": ""
           }
         ],
         "imports": []
@@ -317,8 +507,8 @@
             "kind": "state",
             "label": "Read current revision",
             "position": {
-              "x": 20,
-              "y": 120
+              "x": 60,
+              "y": 268
             },
             "description": "Agent receives document and revision ID.",
             "stereotype": "",
@@ -330,8 +520,8 @@
             "kind": "state",
             "label": "Propose architecture",
             "position": {
-              "x": 340,
-              "y": 120
+              "x": 490,
+              "y": 268
             },
             "description": "Validated candidate plus author and rationale.",
             "stereotype": "",
@@ -343,8 +533,8 @@
             "kind": "state",
             "label": "Review visual diff",
             "position": {
-              "x": 660,
-              "y": 120
+              "x": 920,
+              "y": 268
             },
             "description": "Human inspects added, removed and modified elements.",
             "stereotype": "",
@@ -356,8 +546,8 @@
             "kind": "state",
             "label": "Accept proposal",
             "position": {
-              "x": 990,
-              "y": 20
+              "x": 1362,
+              "y": 170
             },
             "description": "Commit if the base revision still matches.",
             "stereotype": "",
@@ -369,8 +559,8 @@
             "kind": "state",
             "label": "Reject proposal",
             "position": {
-              "x": 990,
-              "y": 260
+              "x": 1362,
+              "y": 366
             },
             "description": "Keep the current architecture.",
             "stereotype": "",
@@ -421,6 +611,323 @@
             "target": "read",
             "kind": "transition",
             "label": "stale → refresh",
+            "sourceMultiplicity": "",
+            "targetMultiplicity": ""
+          }
+        ],
+        "imports": []
+      },
+      {
+        "id": "recovery_pipeline",
+        "name": "Repository analysis pipeline",
+        "description": "The implemented deterministic inventory and quality slice, with later semantic recovery kept explicit as a roadmap.",
+        "nodes": [
+          {
+            "id": "repository",
+            "kind": "database",
+            "label": "Repository snapshot",
+            "position": {
+              "x": 60,
+              "y": 194
+            },
+            "description": "Source, configuration, documentation, tests, generated artifacts, and an explicit ignore policy.",
+            "stereotype": "observed input",
+            "members": [],
+            "codeLinks": []
+          },
+          {
+            "id": "analysis_runner",
+            "kind": "component",
+            "label": "Analysis runner",
+            "position": {
+              "x": 509,
+              "y": 194
+            },
+            "description": "Runs inventory twice, compares canonical outputs byte-for-byte, then invokes quality checks.",
+            "stereotype": "implemented",
+            "members": [],
+            "codeLinks": [
+              {
+                "path": "scripts/repo-analysis/run.mjs",
+                "startLine": 1
+              }
+            ]
+          },
+          {
+            "id": "inventory",
+            "kind": "component",
+            "label": "Artifact inventory",
+            "position": {
+              "x": 939,
+              "y": 194
+            },
+            "description": "Emits stable relative identities, roles, languages, byte counts, line counts, hashes, and observed provenance.",
+            "stereotype": "implemented",
+            "members": [],
+            "codeLinks": [
+              {
+                "path": "scripts/repo-analysis/inventory.mjs",
+                "startLine": 1
+              },
+              {
+                "path": "scripts/repo-analysis/lib.mjs",
+                "startLine": 1
+              }
+            ]
+          },
+          {
+            "id": "analysis_records",
+            "kind": "database",
+            "label": "Analysis records",
+            "position": {
+              "x": 1409,
+              "y": 194
+            },
+            "description": "Manifest, JSON Lines artifact inventory, coverage denominators, uncertainty counts, and diagnostics.",
+            "stereotype": "generated evidence",
+            "members": [],
+            "codeLinks": []
+          },
+          {
+            "id": "quality",
+            "kind": "component",
+            "label": "Quality gates",
+            "position": {
+              "x": 1844,
+              "y": 194
+            },
+            "description": "Checks record integrity, identity uniqueness, hash shape, epistemic status, language recognition, and reproducibility.",
+            "stereotype": "implemented",
+            "members": [],
+            "codeLinks": [
+              {
+                "path": "scripts/repo-analysis/quality.mjs",
+                "startLine": 1
+              }
+            ]
+          },
+          {
+            "id": "atlas_review",
+            "kind": "interface",
+            "label": "Atlas architecture review",
+            "position": {
+              "x": 2274,
+              "y": 60
+            },
+            "description": "A person or agent compares scan evidence with asserted system design and prepares a revision-aware proposal.",
+            "stereotype": "review boundary",
+            "members": [],
+            "codeLinks": [
+              {
+                "path": "src/server/mcp.ts",
+                "startLine": 1
+              }
+            ]
+          },
+          {
+            "id": "semantic_roadmap",
+            "kind": "note",
+            "label": "Semantic recovery roadmap",
+            "position": {
+              "x": 2274,
+              "y": 256
+            },
+            "description": "Syntax parsing, symbol resolution, behavior lowering, architecture candidates, and automatic Atlas projection remain planned; the current quality report marks them not run.",
+            "stereotype": "",
+            "members": [],
+            "codeLinks": [
+              {
+                "path": "research/repository-decontextualization/pipeline.json",
+                "startLine": 1
+              }
+            ]
+          }
+        ],
+        "edges": [
+          {
+            "id": "scan",
+            "source": "repository",
+            "target": "analysis_runner",
+            "kind": "dependency",
+            "label": "scan controlled inputs",
+            "sourceMultiplicity": "",
+            "targetMultiplicity": ""
+          },
+          {
+            "id": "run_inventory",
+            "source": "analysis_runner",
+            "target": "inventory",
+            "kind": "dependency",
+            "label": "execute twice",
+            "sourceMultiplicity": "",
+            "targetMultiplicity": ""
+          },
+          {
+            "id": "write_records",
+            "source": "inventory",
+            "target": "analysis_records",
+            "kind": "dependency",
+            "label": "observed artifact records",
+            "sourceMultiplicity": "",
+            "targetMultiplicity": ""
+          },
+          {
+            "id": "measure",
+            "source": "analysis_records",
+            "target": "quality",
+            "kind": "dependency",
+            "label": "integrity + coverage",
+            "sourceMultiplicity": "",
+            "targetMultiplicity": ""
+          },
+          {
+            "id": "review_evidence",
+            "source": "quality",
+            "target": "atlas_review",
+            "kind": "dependency",
+            "label": "qualified evidence",
+            "sourceMultiplicity": "",
+            "targetMultiplicity": ""
+          },
+          {
+            "id": "next_stages",
+            "source": "quality",
+            "target": "semantic_roadmap",
+            "kind": "dependency",
+            "label": "future stages",
+            "sourceMultiplicity": "",
+            "targetMultiplicity": ""
+          }
+        ],
+        "imports": []
+      },
+      {
+        "id": "epistemic_contract",
+        "name": "Epistemic contract",
+        "description": "Each level states how a record became known. Confidence refines a status but never replaces it.",
+        "nodes": [
+          {
+            "id": "observed",
+            "kind": "state",
+            "label": "Observed",
+            "position": {
+              "x": 60,
+              "y": 60
+            },
+            "description": "Read directly from controlled input.",
+            "stereotype": "fact",
+            "members": [],
+            "codeLinks": []
+          },
+          {
+            "id": "parsed",
+            "kind": "state",
+            "label": "Parsed",
+            "position": {
+              "x": 490,
+              "y": 60
+            },
+            "description": "Recognized by a named grammar.",
+            "stereotype": "fact under grammar",
+            "members": [],
+            "codeLinks": []
+          },
+          {
+            "id": "resolved",
+            "kind": "state",
+            "label": "Resolved",
+            "position": {
+              "x": 920,
+              "y": 60
+            },
+            "description": "Bound by a semantic tool within captured build context.",
+            "stereotype": "contextual fact",
+            "members": [],
+            "codeLinks": []
+          },
+          {
+            "id": "derived",
+            "kind": "state",
+            "label": "Derived",
+            "position": {
+              "x": 1350,
+              "y": 60
+            },
+            "description": "Computed deterministically from prior records.",
+            "stereotype": "reproducible result",
+            "members": [],
+            "codeLinks": []
+          },
+          {
+            "id": "inferred",
+            "kind": "state",
+            "label": "Inferred",
+            "position": {
+              "x": 1780,
+              "y": 60
+            },
+            "description": "Selected as the best supported hypothesis with alternatives retained.",
+            "stereotype": "hypothesis",
+            "members": [],
+            "codeLinks": []
+          },
+          {
+            "id": "asserted",
+            "kind": "state",
+            "label": "Asserted",
+            "position": {
+              "x": 2210,
+              "y": 60
+            },
+            "description": "Supplied or accepted by a person or agent as design intent.",
+            "stereotype": "design decision",
+            "members": [],
+            "codeLinks": []
+          }
+        ],
+        "edges": [
+          {
+            "id": "observe_parse",
+            "source": "observed",
+            "target": "parsed",
+            "kind": "transition",
+            "label": "grammar",
+            "sourceMultiplicity": "",
+            "targetMultiplicity": ""
+          },
+          {
+            "id": "parse_resolve",
+            "source": "parsed",
+            "target": "resolved",
+            "kind": "transition",
+            "label": "build + semantics",
+            "sourceMultiplicity": "",
+            "targetMultiplicity": ""
+          },
+          {
+            "id": "resolve_derive",
+            "source": "resolved",
+            "target": "derived",
+            "kind": "transition",
+            "label": "versioned rule",
+            "sourceMultiplicity": "",
+            "targetMultiplicity": ""
+          },
+          {
+            "id": "derive_infer",
+            "source": "derived",
+            "target": "inferred",
+            "kind": "transition",
+            "label": "rank hypotheses",
+            "sourceMultiplicity": "",
+            "targetMultiplicity": ""
+          },
+          {
+            "id": "infer_assert",
+            "source": "inferred",
+            "target": "asserted",
+            "kind": "transition",
+            "label": "review / accept",
             "sourceMultiplicity": "",
             "targetMultiplicity": ""
           }
