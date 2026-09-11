@@ -3,7 +3,7 @@ import { ReactFlow, Background, Controls, MiniMap, Handle, Position, ConnectionM
 import type { ArchDocument, Diagram, ArchEdge } from '../core/model';
 import type { Change } from '../core/diff';
 import { expansionBounds, expansionOffset, layoutSize } from '../core/layout';
-import { connectionRoute, isBackwardConnection, type Rect } from '../core/geometry';
+import { diagramConnectionRoutes, type Rect } from '../core/geometry';
 const EMPTY_CHANGES: Change[] = [];
 const icons: Partial<Record<string, string>> = { actor: '♙' };
 function Ports() { return <><Handle id="port-top" type="source" position={Position.Top}/><Handle id="port-right" type="source" position={Position.Right}/><Handle id="port-bottom" type="source" position={Position.Bottom}/><Handle id="port-left" type="source" position={Position.Left}/></>; }
@@ -106,9 +106,10 @@ export default function Canvas({ document, diagram, onSelect, onMove, onConnect,
         if (expanded) collect(child, `${prefix}${i.id}__`, prefix + i.id, { x: 35 - minX, y: 120 - minY });
       }
       const rectangle = (node: Node): Rect => { const estimated = layoutSize(node.data as any); const width = Number(node.style?.width ?? estimated.width); const height = Number(node.style?.height ?? estimated.height); return { left: node.position.x, top: node.position.y, right: node.position.x + width, bottom: node.position.y + height }; };
-      const returnLane = new Map(d.edges.filter(edge => { const source = nodes.find(node => node.id === prefix + edge.source)!; const target = nodes.find(node => node.id === prefix + edge.target)!; return isBackwardConnection(rectangle(source), rectangle(target)); }).map(edge => edge.id).sort().map((id, index) => [id, index]));
+      const bounds = new Map([...d.nodes, ...d.imports].map(entity => [entity.id, rectangle(nodes.find(node => node.id === prefix + entity.id)!)]));
+      const routes = diagramConnectionRoutes(d.edges, bounds);
       for (const e of d.edges) {
-        const source = nodes.find(node => node.id === prefix + e.source)!; const target = nodes.find(node => node.id === prefix + e.target)!; const route = connectionRoute(rectangle(source), rectangle(target), returnLane.get(e.id) ?? 0);
+        const route = routes.get(e.id)!;
         edges.push({ id: prefix + e.id, type: 'uml', source: prefix + e.source, target: prefix + e.target, sourceHandle: `port-${route.sourceSide}`, targetHandle: `port-${route.targetSide}`, label: e.label, data: { ...e, returnOffset: route.returnOffset, localId: e.id, nested: !!parentId, change: change(e.id, d.id) }, selectable: !parentId, selected: !parentId && focusId === e.id });
       }
     }

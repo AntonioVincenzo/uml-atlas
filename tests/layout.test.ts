@@ -61,6 +61,19 @@ test('routing uses vertical ports for row-separated neighbors and horizontal por
   const audit = inspectDiagramGeometry(diagram); const across = audit.connectors.find(connector => connector.id === 'across')!; const diagonal = audit.connectors.find(connector => connector.id === 'diagonal')!;
   assert.deepEqual({ source: across.sourceSide, target: across.targetSide }, { source: 'right', target: 'left' }); assert.deepEqual({ source: diagonal.sourceSide, target: diagonal.targetSide }, { source: 'bottom', target: 'top' });
 });
+test('routing separates input and output attachment points on the same node', () => {
+  const diagram: Diagram = { id: 'port-roles', name: 'Port roles', description: '', imports: [], nodes: [
+    { ...newNode('system', 'component', { x: 520, y: 60 }), label: 'System overview' },
+    { ...newNode('fabrication', 'component', { x: 980, y: 355 }), label: 'Fabrication compositor' },
+    { ...newNode('stable', 'component', { x: 1440, y: 60 }), label: 'Stable engine' },
+  ], edges: [
+    { id: 'into-fabrication', source: 'system', target: 'fabrication', kind: 'dependency', label: 'includes', sourceMultiplicity: '', targetMultiplicity: '' },
+    { id: 'out-of-fabrication', source: 'fabrication', target: 'stable', kind: 'dependency', label: 'uses', sourceMultiplicity: '', targetMultiplicity: '' },
+  ] };
+  const audit = inspectDiagramGeometry(diagram); const incoming = audit.connectors.find(connector => connector.id === 'into-fabrication')!; const outgoing = audit.connectors.find(connector => connector.id === 'out-of-fabrication')!;
+  assert.equal(incoming.targetSide, 'top'); assert.equal(outgoing.sourceSide, 'right');
+  assert.notEqual(incoming.targetSide, outgoing.sourceSide); assert.ok(!audit.complaints.some(complaint => complaint.kind === 'mixed-direction-port'));
+});
 test('tidy aligns mutual preferred neighbors and leaves distinct ports for a cross-track edge', () => {
   const node = (id: string, kind: 'actor' | 'component' | 'interface', y: number) => ({ ...newNode(id, kind, { x: 0, y }), label: id });
   const diagram: Diagram = { id: 'preferred-neighbors', name: 'Preferred neighbors', description: '', imports: [], nodes: [

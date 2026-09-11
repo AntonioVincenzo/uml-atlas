@@ -5,7 +5,7 @@ export type Point = { x: number; y: number };
 export type Rect = { left: number; top: number; right: number; bottom: number };
 export type PortSide = 'top' | 'right' | 'bottom' | 'left';
 export type GeometryComplaint = {
-  kind: 'node-node-overlap' | 'label-node-overlap' | 'label-node-clearance' | 'label-label-overlap' | 'connector-through-node' | 'connector-through-label';
+  kind: 'node-node-overlap' | 'label-node-overlap' | 'label-node-clearance' | 'label-label-overlap' | 'connector-through-node' | 'connector-through-label' | 'mixed-direction-port';
   connectorId?: string; otherConnectorId?: string; nodeId?: string; otherNodeId?: string;
 };
 export type ConnectorRoute = { sourceSide: PortSide; targetSide: PortSide; start: Point; end: Point; segments: { start: Point; end: Point }[]; labelPoint: Point; returnOffset?: number };
@@ -20,15 +20,38 @@ export function connectionSides(source: Rect, target: Rect): { source: PortSide;
 }
 const port = (rect: Rect, side: PortSide): Point => side === 'left' ? { x: rect.left, y: center(rect).y } : side === 'right' ? { x: rect.right, y: center(rect).y } : side === 'top' ? { x: center(rect).x, y: rect.top } : { x: center(rect).x, y: rect.bottom };
 export const isBackwardConnection = (source: Rect, target: Rect) => center(target).x < center(source).x;
-export function connectionRoute(source: Rect, target: Rect, returnLane = 0): ConnectorRoute {
-  if (isBackwardConnection(source, target)) {
+export function connectionRoute(source: Rect, target: Rect, returnLane = 0, assignedSides?: { source: PortSide; target: PortSide }): ConnectorRoute {
+  if (!assignedSides && isBackwardConnection(source, target)) {
     const sourceSide: PortSide = 'top'; const targetSide: PortSide = 'top'; const start = port(source, sourceSide); const end = port(target, targetSide); const returnOffset = 70 + returnLane * 42; const laneY = Math.min(start.y, end.y) - returnOffset;
     return { sourceSide, targetSide, start, end, returnOffset, segments: [{ start, end: { x: start.x, y: laneY } }, { start: { x: start.x, y: laneY }, end: { x: end.x, y: laneY } }, { start: { x: end.x, y: laneY }, end }], labelPoint: { x: (start.x + end.x) / 2, y: laneY } };
   }
-  const sides = connectionSides(source, target); const start = port(source, sides.source); const end = port(target, sides.target);
+  const sides = assignedSides ?? connectionSides(source, target); const start = port(source, sides.source); const end = port(target, sides.target);
   const horizontal = sides.source === 'left' || sides.source === 'right'; const bend = horizontal ? (start.x + end.x) / 2 : (start.y + end.y) / 2;
   const segments = horizontal ? [{ start, end: { x: bend, y: start.y } }, { start: { x: bend, y: start.y }, end: { x: bend, y: end.y } }, { start: { x: bend, y: end.y }, end }] : [{ start, end: { x: start.x, y: bend } }, { start: { x: start.x, y: bend }, end: { x: end.x, y: bend } }, { start: { x: end.x, y: bend }, end }];
   return { sourceSide: sides.source, targetSide: sides.target, start, end, segments, labelPoint: { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 } };
+}
+
+type RoutableEdge = Pick<Diagram['edges'][number], 'id' | 'source' | 'target'>;
+type PortRole = 'input' | 'output';
+
+export function diagramConnectionRoutes(edges: RoutableEdge[], bounds: Map<string, Rect>) {
+  const backward = edges.filter(edge => isBackwardConnection(bounds.get(edge.source)!, bounds.get(edge.target)!));
+  const returnLane = new Map(backward.map(edge => edge.id).sort().map((id, index) => [id, index]));
+  const occupied = new Map<string, Map<PortSide, PortRole>>(); const routes = new Map<string, ConnectorRoute>();
+  const roleConflict = (node: string, side: PortSide, role: PortRole) => { const current = occupied.get(node)?.get(side); return current !== undefined && current !== role; };
+  const reserve = (node: string, side: PortSide, role: PortRole) => { const ports = occupied.get(node) ?? new Map<PortSide, PortRole>(); ports.set(side, role); occupied.set(node, ports); };
+  for (const edge of edges) {
+    const source = bounds.get(edge.source)!; const target = bounds.get(edge.target)!;
+    if (returnLane.has(edge.id)) { routes.set(edge.id, connectionRoute(source, target, returnLane.get(edge.id)!)); continue; }
+    const natural = connectionSides(source, target); const from = center(source); const to = center(target);
+    const horizontal = to.x >= from.x ? { source: 'right', target: 'left' } as const : { source: 'left', target: 'right' } as const;
+    const vertical = to.y >= from.y ? { source: 'bottom', target: 'top' } as const : { source: 'top', target: 'bottom' } as const;
+    const candidates = [natural, horizontal, vertical, { source: 'bottom', target: 'top' } as const, { source: 'right', target: 'left' } as const];
+    const sides = candidates.find((candidate, index) => candidates.findIndex(other => other.source === candidate.source && other.target === candidate.target) === index && !roleConflict(edge.source, candidate.source, 'output') && !roleConflict(edge.target, candidate.target, 'input')) ?? natural;
+    reserve(edge.source, sides.source, 'output'); reserve(edge.target, sides.target, 'input');
+    routes.set(edge.id, connectionRoute(source, target, 0, sides));
+  }
+  return routes;
 }
 const overlaps = (a: Rect, b: Rect) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
 const expanded = (rect: Rect, amount: number): Rect => ({ left: rect.left - amount, right: rect.right + amount, top: rect.top - amount, bottom: rect.bottom + amount });
@@ -44,12 +67,17 @@ export function inspectDiagramGeometry(diagram: Diagram) {
   const items = [...diagram.nodes, ...diagram.imports];
   const nodes = items.map(item => { const size = layoutSize(item); const bounds = { left: item.position.x, top: item.position.y, right: item.position.x + size.width, bottom: item.position.y + size.height }; return { id: item.id, topLeft: { x: bounds.left, y: bounds.top }, bottomRight: { x: bounds.right, y: bounds.bottom }, bounds }; });
   const byId = new Map(nodes.map(node => [node.id, node]));
-  const returnLane = new Map(diagram.edges.filter(edge => isBackwardConnection(byId.get(edge.source)!.bounds, byId.get(edge.target)!.bounds)).map(edge => edge.id).sort().map((id, index) => [id, index]));
+  const routes = diagramConnectionRoutes(diagram.edges, new Map(nodes.map(node => [node.id, node.bounds])));
   const connectors = diagram.edges.map(edge => {
-    const source = byId.get(edge.source)!; const target = byId.get(edge.target)!; const route = connectionRoute(source.bounds, target.bounds, returnLane.get(edge.id) ?? 0);
+    const source = byId.get(edge.source)!; const target = byId.get(edge.target)!; const route = routes.get(edge.id)!;
     return { id: edge.id, source: edge.source, target: edge.target, ...route, label: edge.label ? { text: edge.label, bounds: labelBounds(edge.label, route.labelPoint) } : null };
   });
   const complaints: GeometryComplaint[] = [];
+  const roles = new Map<string, Map<PortSide, Set<PortRole>>>();
+  for (const connector of connectors.filter(connector => connector.returnOffset === undefined)) for (const [node, side, role] of [[connector.source, connector.sourceSide, 'output'], [connector.target, connector.targetSide, 'input']] as const) {
+    const ports = roles.get(node) ?? new Map<PortSide, Set<PortRole>>(); const values = ports.get(side) ?? new Set<PortRole>(); values.add(role); ports.set(side, values); roles.set(node, ports);
+  }
+  for (const [nodeId, ports] of roles) for (const values of ports.values()) if (values.size > 1) complaints.push({ kind: 'mixed-direction-port', nodeId });
   for (let first = 0; first < nodes.length; first++) for (let second = first + 1; second < nodes.length; second++) if (overlaps(nodes[first].bounds, nodes[second].bounds)) complaints.push({ kind: 'node-node-overlap', nodeId: nodes[first].id, otherNodeId: nodes[second].id });
   for (const connector of connectors) {
     for (const node of nodes) {
