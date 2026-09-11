@@ -1,6 +1,8 @@
 import { z } from 'zod';
 
 export const identifier = z.string().regex(/^[A-Za-z_][A-Za-z0-9_-]*$/, 'Use a letter or underscore, then letters, numbers, underscores or hyphens').max(100);
+export const PROJECT_OVERVIEW_ID = 'project_overview';
+export const PROJECT_OVERVIEW_NAME = 'Project Overview';
 export const nodeKinds = ['component', 'class', 'interface', 'package', 'actor', 'usecase', 'database', 'service', 'state', 'note', 'enum'] as const;
 export const edgeKinds = ['association', 'dependency', 'generalization', 'realization', 'composition', 'aggregation', 'transition'] as const;
 const point = z.object({ x: z.number().finite().min(-100000).max(100000), y: z.number().finite().min(-100000).max(100000) }).strict();
@@ -29,6 +31,15 @@ export function validateDocument(input: unknown): ArchDocument {
   const unique = (ids: string[], context: string) => { if (new Set(ids).size !== ids.length) throw new Error(`Duplicate ID in ${context}`); };
   unique(doc.diagrams.map(d => d.id), 'diagrams');
   const diagrams = new Map(doc.diagrams.map(d => [d.id, d]));
+  const projectOverview = diagrams.get(PROJECT_OVERVIEW_ID);
+  if (projectOverview) {
+    if (doc.diagrams[0].id !== PROJECT_OVERVIEW_ID) throw new Error(`${PROJECT_OVERVIEW_NAME} must be the first diagram`);
+    if (projectOverview.name !== PROJECT_OVERVIEW_NAME) throw new Error(`${PROJECT_OVERVIEW_ID} must be named ${PROJECT_OVERVIEW_NAME}`);
+    for (const reference of projectOverview.imports) {
+      const target = diagrams.get(reference.diagramId);
+      if (target && reference.label !== target.name) throw new Error(`${PROJECT_OVERVIEW_ID}/${reference.id}: label must match diagram name ${target.name}`);
+    }
+  }
   for (const d of doc.diagrams) {
     unique([...d.nodes, ...d.imports, ...d.edges].map(n => n.id), d.id);
     const entities = new Set([...d.nodes, ...d.imports].map(n => n.id));
@@ -63,7 +74,7 @@ export function validateDocument(input: unknown): ArchDocument {
   return doc;
 }
 export function emptyDocument(name = 'Untitled architecture'): ArchDocument {
-  return { schemaVersion: 1, id: 'workspace', name, diagrams: [{ id: 'overview', name: 'System overview', description: '', nodes: [], edges: [], imports: [] }] };
+  return { schemaVersion: 1, id: 'workspace', name, diagrams: [{ id: PROJECT_OVERVIEW_ID, name: PROJECT_OVERVIEW_NAME, description: 'Start here. Add diagrams to describe the project, then reference them here as a project map.', nodes: [], edges: [], imports: [] }] };
 }
 export function newNode(id: string, kind: ArchNode['kind'], position = { x: 100, y: 100 }): ArchNode {
   return { id, kind, label: `New ${kind}`, position, description: '', stereotype: '', members: [], codeLinks: [] };

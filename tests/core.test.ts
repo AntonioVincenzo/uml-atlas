@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { exampleDocument } from '../src/core/example';
-import { newNode, validateDocument, mergeDocument, type ArchDocument } from '../src/core/model';
+import { emptyDocument, newNode, validateDocument, mergeDocument, PROJECT_OVERVIEW_ID, PROJECT_OVERVIEW_NAME, type ArchDocument } from '../src/core/model';
 import { toUml, parseUml } from '../src/core/uml';
 import { diffDocuments } from '../src/core/diff';
 const fixture = () => structuredClone(exampleDocument);
@@ -57,6 +57,14 @@ test('diff distinguishes layout, label changes, edge rewiring, addition and dele
 });
 test('schema rejects unknown data instead of silently discarding it', () => {
   assert.throws(() => validateDocument({ ...fixture(), typo: true }), /Unrecognized/);
+});
+test('project overview has one canonical name, position, and reference titles', () => {
+  const blank = emptyDocument(); assert.equal(blank.diagrams[0].id, PROJECT_OVERVIEW_ID); assert.equal(blank.diagrams[0].name, PROJECT_OVERVIEW_NAME);
+  const source = fixture(); const overview = { id: PROJECT_OVERVIEW_ID, name: PROJECT_OVERVIEW_NAME, description: '', nodes: [], edges: [], imports: [{ id: 'system', diagramId: 'overview', label: 'System architecture', position: { x: 0, y: 0 }, expanded: false }] };
+  const valid = { ...source, diagrams: [overview, ...source.diagrams] }; validateDocument(valid);
+  assert.throws(() => validateDocument({ ...valid, diagrams: [source.diagrams[0], overview, ...source.diagrams.slice(1)] }), /must be the first/);
+  assert.throws(() => validateDocument({ ...valid, diagrams: [{ ...overview, name: 'Start here' }, ...source.diagrams] }), /must be named Project Overview/);
+  assert.throws(() => validateDocument({ ...valid, diagrams: [{ ...overview, imports: [{ ...overview.imports[0], label: 'How Atlas fits together' }] }, ...source.diagrams] }), /label must match diagram name System architecture/);
 });
 test('a representative generated model round trips repeatedly', () => {
   const doc: ArchDocument = { schemaVersion: 1, id: 'generated', name: 'Generated', diagrams: [{ id: 'root', name: 'Generated diagram', description: 'Round trip', nodes: Array.from({ length: 80 }, (_, i) => ({ ...newNode(`node_${i}`, i % 2 ? 'class' : 'component'), label: `Element ${i}`, members: i % 2 ? [`+field_${i}: String`] : [], position: { x: i * 23, y: i ? i * -17 : 0 } })), edges: [], imports: [] }] };

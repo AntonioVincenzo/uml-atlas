@@ -1,9 +1,9 @@
 {
-  "revision": "fd980a8e-8136-4340-b15d-7612efba201e",
-  "parentRevision": "fb1e99b0-a8ed-408f-b88b-81099e65f755",
-  "createdAt": "2026-09-11T19:57:55.489Z",
-  "author": "Atlas orientation designer",
-  "rationale": "Add a project overview as the first diagram. Its reusable diagram cards state what each detailed view explains and show how system design, review, repository evidence, and the epistemic contract relate. SDLC, delivery, and design-record views remain deferred until the project has enough process to make them useful.",
+  "revision": "120d9d3e-ad1d-4a33-8802-e9b5c60e8d69",
+  "parentRevision": "fd980a8e-8136-4340-b15d-7612efba201e",
+  "createdAt": "2026-09-11T20:09:18.866Z",
+  "author": "Atlas project overview maintenance",
+  "rationale": "Keep Project Overview canonical and use the exact title of every referenced diagram.",
   "revisionType": "design",
   "document": {
     "schemaVersion": 1,
@@ -12,7 +12,7 @@
     "diagrams": [
       {
         "id": "project_overview",
-        "name": "Project overview",
+        "name": "Project Overview",
         "description": "Start here. Each card answers one project-level question, states the purpose of its diagram, and opens the detailed view.",
         "nodes": [],
         "edges": [
@@ -57,7 +57,7 @@
           {
             "id": "map_system",
             "diagramId": "overview",
-            "label": "How Atlas fits together",
+            "label": "System architecture",
             "position": {
               "x": 60,
               "y": 140
@@ -67,7 +67,7 @@
           {
             "id": "map_core",
             "diagramId": "model_core",
-            "label": "What every editor shares",
+            "label": "Shared model core",
             "position": {
               "x": 60,
               "y": -190
@@ -77,7 +77,7 @@
           {
             "id": "map_review",
             "diagramId": "review_flow",
-            "label": "How proposed changes are reviewed",
+            "label": "Agent review lifecycle",
             "position": {
               "x": 60,
               "y": 470
@@ -87,7 +87,7 @@
           {
             "id": "map_analysis",
             "diagramId": "recovery_pipeline",
-            "label": "How repository evidence is produced",
+            "label": "Repository analysis pipeline",
             "position": {
               "x": 560,
               "y": 140
@@ -97,7 +97,7 @@
           {
             "id": "map_epistemic",
             "diagramId": "epistemic_contract",
-            "label": "How Atlas labels what it knows",
+            "label": "Epistemic contract",
             "position": {
               "x": 1001,
               "y": 140

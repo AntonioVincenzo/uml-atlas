@@ -20,7 +20,7 @@ npm start
 
 Open **http://127.0.0.1:4311**. The checked-in `architecture.json` describes Atlas itself. The UI is served by the same local process as the filesystem API.
 
-Atlas opens the first diagram as the project's landing view. The checked-in self-description starts with a project overview whose cards explain and open the detailed diagrams. Diagram purposes also appear beneath their titles and on collapsed diagram references. The [project-view roadmap](docs/ROADMAP.md) records larger views and the conditions that would make them useful.
+Atlas opens the first diagram as the project's landing view. `Project Overview` is the reserved name for this diagram in every project, and its bullseye symbol distinguishes it from ordinary diagrams. Its reference cards use the exact titles and purposes of their target diagrams. Diagram purposes also appear beneath their titles. The [project-view roadmap](docs/ROADMAP.md) records larger views and the conditions that would make them useful.
 
 For development with hot reload:
 

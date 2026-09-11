@@ -11,6 +11,7 @@
     "test": "tsx --test tests/*.test.ts",
     "licenses": "node scripts/licenses.mjs",
     "analyze:repo": "node scripts/repo-analysis/run.mjs",
+    "sync:overviews": "npm run build && node scripts/ensure-project-overviews.mjs",
     "prepack": "npm run build",
     "test:package": "node scripts/verify-package.mjs",
     "demo:proposal": "node scripts/demo-proposal.mjs",
