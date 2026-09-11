@@ -88,6 +88,8 @@ The usual prompt is:
 
 Tools: `get_architecture`, `get_diagram`, `analyze_diagram_layout`, `validate_architecture`, `propose_architecture`, `propose_diagram`, `list_proposals`, `get_proposal`, `get_history`, `compare_revisions`, and `read_code_region`. `analyze_diagram_layout` returns deterministic node, connector, and label geometry plus typed collision complaints. Resources: `atlas://architecture` and `atlas://schema`. Detailed contract and examples: [MCP guide](docs/MCP.md).
 
+Code links are optional bookmarks, not synchronized claims about the repository. Agents should expect paths and line ranges to drift, read the current region before relying on it, and treat a successful read only as proof that the location still exists. Atlas does not repair code links automatically.
+
 Agent writes create proposals; the MCP surface does not expose acceptance. Atlas detects proposals every four seconds. If another writer saves first, stale acceptance fails instead of overwriting it. Refresh and create a new proposal; Atlas does not automatically merge conflicting designs.
 
 For a real agent round-trip demonstration against a workspace containing the initial Atlas demo:

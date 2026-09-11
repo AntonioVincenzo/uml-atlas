@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -11,9 +11,12 @@ test('real stdio MCP client can discover, read, propose, inspect, and observe UI
   const root = await mkdtemp(path.join(os.tmpdir(), 'atlas-mcp-')); t.after(() => rm(root, { recursive: true, force: true })); const store = new Store(root); const initial = await store.init(exampleDocument);
   const client = new Client({ name: 'atlas-integration-test', version: '1.0.0' }); const transport = new StdioClientTransport({ command: process.execPath, args: ['--import', 'tsx', path.resolve('src/server/cli.ts'), 'mcp', '--workspace', root], stderr: 'pipe' }); await client.connect(transport); t.after(() => client.close());
   const tools = await client.listTools(); assert.ok(tools.tools.some(t => t.name === 'propose_diagram')); assert.ok(!tools.tools.some(t => t.name.includes('accept')));
+  assert.match(tools.tools.find(t => t.name === 'get_architecture')?.description ?? '', /Code links.*may drift/);
   const call = async (name: string, args: Record<string, unknown> = {}) => { const result = await client.callTool({ name, arguments: args }); if (result.isError) throw new Error(JSON.stringify(result.content)); return JSON.parse((result.content as any)[0].text); };
   const current = await call('get_architecture'); assert.equal(current.revision, initial.revision);
   const diagram = await call('get_diagram', { diagramId: 'overview' }); assert.match(diagram.uml, /@startuml overview/);
+  await writeFile(path.join(root, 'linked.ts'), 'export const current = true;\n');
+  const linked = await call('read_code_region', { path: 'linked.ts', startLine: 1 }); assert.equal(linked.linkStatus, 'unverified'); assert.match(linked.notice, /successful read confirms only/);
   const geometry = await call('analyze_diagram_layout', { diagramId: 'overview' }); assert.equal(geometry.nodes.length, 6); assert.equal(geometry.connectors.length, 5); assert.ok(Array.isArray(geometry.complaints));
   const proposed = await call('propose_diagram', { diagramId: 'overview', uml: diagram.uml.replace('"Designer"', '"System architect"'), baseRevision: current.revision, author: 'Test agent', rationale: 'Clarify who reviews architecture' });
   assert.equal(proposed.changes[0].fields[0], 'label'); assert.equal((await call('get_architecture')).revision, current.revision); const inspected = await call('get_proposal', { proposalId: proposed.proposal.id }); assert.equal(inspected.changes.length, 1);
