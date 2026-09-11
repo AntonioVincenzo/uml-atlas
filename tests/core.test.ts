@@ -4,6 +4,7 @@ import { exampleDocument } from '../src/core/example';
 import { emptyDocument, newNode, validateDocument, mergeDocument, PROJECT_OVERVIEW_ID, PROJECT_OVERVIEW_NAME, type ArchDocument } from '../src/core/model';
 import { toUml, parseUml } from '../src/core/uml';
 import { diffDocuments } from '../src/core/diff';
+import { synchronizeProjectOverview } from '../src/core/overview';
 const fixture = () => structuredClone(exampleDocument);
 test('every self-description diagram round trips through UML without data loss', () => {
   for (const diagram of fixture().diagrams) assert.deepEqual(parseUml(toUml(diagram)), diagram);
@@ -65,6 +66,15 @@ test('project overview has one canonical name, position, and reference titles', 
   assert.throws(() => validateDocument({ ...valid, diagrams: [source.diagrams[0], overview, ...source.diagrams.slice(1)] }), /must be the first/);
   assert.throws(() => validateDocument({ ...valid, diagrams: [{ ...overview, name: 'Start here' }, ...source.diagrams] }), /must be named Project Overview/);
   assert.throws(() => validateDocument({ ...valid, diagrams: [{ ...overview, imports: [{ ...overview.imports[0], label: 'How Atlas fits together' }] }, ...source.diagrams] }), /label must match diagram name System architecture/);
+});
+test('creating or repairing a disconnected project overview preserves relationships between imported diagrams', () => {
+  const source = fixture();
+  const synchronized = synchronizeProjectOverview(source); const overview = synchronized.diagrams[0];
+  assert.equal(overview.id, PROJECT_OVERVIEW_ID);
+  assert.deepEqual(overview.edges.map(edge => [edge.source, edge.target, edge.label]), [['map_overview', 'map_model_core', 'includes']]);
+  validateDocument(synchronized);
+  const repaired = synchronizeProjectOverview({ ...synchronized, diagrams: [{ ...overview, edges: [] }, ...synchronized.diagrams.slice(1)] });
+  assert.deepEqual(repaired.diagrams[0].edges, overview.edges);
 });
 test('a representative generated model round trips repeatedly', () => {
   const doc: ArchDocument = { schemaVersion: 1, id: 'generated', name: 'Generated', diagrams: [{ id: 'root', name: 'Generated diagram', description: 'Round trip', nodes: Array.from({ length: 80 }, (_, i) => ({ ...newNode(`node_${i}`, i % 2 ? 'class' : 'component'), label: `Element ${i}`, members: i % 2 ? [`+field_${i}: String`] : [], position: { x: i * 23, y: i ? i * -17 : 0 } })), edges: [], imports: [] }] };

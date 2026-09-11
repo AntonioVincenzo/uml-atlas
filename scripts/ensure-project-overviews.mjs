@@ -4,40 +4,20 @@ import { randomUUID } from 'node:crypto';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { Store } from '../dist/server/store.js';
-import { PROJECT_OVERVIEW_ID, PROJECT_OVERVIEW_NAME, validateDocument } from '../dist/core/model.js';
+import { PROJECT_OVERVIEW_ID, validateDocument } from '../dist/core/model.js';
+import { synchronizeProjectOverview } from '../dist/core/overview.js';
+import { tidyDiagram } from '../dist/core/layout.js';
 
 const catalogPath = path.join(homedir(), '.atlas', 'projects.json');
 const catalog = JSON.parse(await readFile(catalogPath, 'utf8'));
 const results = [];
 
-function referenceId(diagramId, used) {
-  const stem = `map_${diagramId}`.slice(0, 91);
-  let id = stem; let suffix = 1;
-  while (used.has(id)) id = `${stem}_${suffix++}`;
-  used.add(id); return id;
-}
-
 function synchronize(document) {
-  const existing = document.diagrams.find(diagram => diagram.id === PROJECT_OVERVIEW_ID);
-  const targets = document.diagrams.filter(diagram => diagram.id !== PROJECT_OVERVIEW_ID);
-  const existingByTarget = new Map(existing?.imports.map(reference => [reference.diagramId, reference]) ?? []);
-  const used = new Set(existing?.imports.map(reference => reference.id) ?? []);
-  const imports = targets.map((target, index) => {
-    const reference = existingByTarget.get(target.id);
-    return reference
-      ? { ...reference, label: target.name }
-      : { id: referenceId(target.id, used), diagramId: target.id, label: target.name, position: { x: 60 + index % 3 * 390, y: 80 + Math.floor(index / 3) * 285 }, expanded: false };
-  });
-  const entityIds = new Set([...(existing?.nodes.map(node => node.id) ?? []), ...imports.map(reference => reference.id)]);
-  const overview = {
-    id: PROJECT_OVERVIEW_ID,
-    name: PROJECT_OVERVIEW_NAME,
-    description: existing?.description || 'Start here. Each card uses the exact title and purpose of its diagram and opens the detailed view.',
-    nodes: existing?.nodes ?? [],
-    edges: existing?.edges.filter(edge => entityIds.has(edge.source) && entityIds.has(edge.target)) ?? [],
-    imports,
-  };
-  return { ...document, diagrams: [overview, ...targets] };
+  const previous = document.diagrams.find(diagram => diagram.id === PROJECT_OVERVIEW_ID);
+  const needsArrangement = !previous || previous.edges.length === 0;
+  const synchronized = synchronizeProjectOverview(document);
+  if (!needsArrangement) return synchronized;
+  return { ...synchronized, diagrams: synchronized.diagrams.map(diagram => diagram.id === PROJECT_OVERVIEW_ID ? tidyDiagram(diagram) : diagram) };
 }
 
 async function migrateInvalidOverview(store, projectPath, current) {
