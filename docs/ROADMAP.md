@@ -6,6 +6,8 @@ Atlas needs views when they help someone make a design decision. A diagram shoul
 
 The project overview is the landing diagram. It names each diagram, shows its purpose, explains how the views relate, and opens the detailed view. Every diagram also shows its purpose below its title. This gives the project a readable entry point without turning the architecture into a mirror of the repository.
 
+The next project-level view is **Project Direction**: a ticket overlay projected onto the Project Overview and its architecture targets. Ticket state remains separate from architecture revisions. The first version should show aggregate status and urgent work, reveal individual tickets on focus, and keep unmapped work visible. The [visualization platform study](../research/visualization-platform/REPORT.md) recommends retaining React Flow for detailed editing while benchmarking a Cytoscape.js overview against the same renderer-neutral projection.
+
 ## Add when the project needs them
 
 ### Delivery and operations

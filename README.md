@@ -8,6 +8,8 @@ The [repository decontextualization study](research/repository-decontextualizati
 
 The [Visua Loom case study](research/case-studies/visua-loom.arch.json) applies that boundary in practice: systems, responsibilities, behavior, and outputs form the architecture, while source locations remain optional evidence links.
 
+The [visualization platform study](research/visualization-platform/REPORT.md) defines how ticket status can be projected onto architecture without turning ticket churn into architecture revisions. It compares React Flow, Cytoscape.js, Sigma.js, ELK.js, graphical-language frameworks, and desktop options, with a benchmark plan and license notes.
+
 ## Run it
 
 Requires Node.js 22.12 or newer and npm.
