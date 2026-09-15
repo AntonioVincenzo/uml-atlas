@@ -34,7 +34,7 @@ test('tidy prefers adjacent centerlines and reserves label clearance from endpoi
   const connector = audit.connectors.find(item => item.id === 'a')!; assert.ok(connector.label); assert.ok(connector.label!.bounds.left - bounds.get('source-a')!.right >= CONNECTOR_LABEL_NODE_GAP); assert.ok(bounds.get('target-a')!.left - connector.label!.bounds.right >= CONNECTOR_LABEL_NODE_GAP);
   assert.ok(!audit.complaints.some(complaint => complaint.kind === 'label-node-clearance'));
 });
-test('geometry audit records ports and reports connector, label, and node collisions', () => {
+test('geometry routing records ports and detours around a node in the direct path', () => {
   const diagram: Diagram = { id: 'collisions', name: 'Collision fixture', description: '', imports: [], nodes: [
     { ...newNode('source', 'component', { x: 0, y: 0 }), label: 'Source' },
     { ...newNode('target', 'component', { x: 600, y: 0 }), label: 'Target' },
@@ -45,9 +45,8 @@ test('geometry audit records ports and reports connector, label, and node collis
     { id: 'vertical', source: 'source', target: 'below', kind: 'dependency', label: 'down', sourceMultiplicity: '', targetMultiplicity: '' },
   ] };
   const audit = inspectDiagramGeometry(diagram); const blocked = audit.connectors.find(connector => connector.id === 'blocked')!; const vertical = audit.connectors.find(connector => connector.id === 'vertical')!;
-  assert.deepEqual({ source: blocked.sourceSide, target: blocked.targetSide }, { source: 'right', target: 'left' }); assert.deepEqual({ source: vertical.sourceSide, target: vertical.targetSide }, { source: 'bottom', target: 'top' });
-  assert.ok(audit.complaints.some(complaint => complaint.kind === 'label-node-overlap' && complaint.nodeId === 'obstruction'));
-  assert.ok(audit.complaints.some(complaint => complaint.kind === 'connector-through-node' && complaint.nodeId === 'obstruction'));
+  assert.deepEqual({ source: blocked.sourceSide, target: blocked.targetSide }, { source: 'top', target: 'top' }); assert.equal(blocked.detour, true); assert.deepEqual({ source: vertical.sourceSide, target: vertical.targetSide }, { source: 'bottom', target: 'top' });
+  assert.deepEqual(audit.complaints, []);
 });
 test('routing uses vertical ports for row-separated neighbors and horizontal ports for aligned neighbors', () => {
   const diagram: Diagram = { id: 'ports', name: 'Port fixture', description: '', imports: [], nodes: [
@@ -99,4 +98,24 @@ test('tidy preserves a forward review flow and routes its cycle-closing edge out
   assert.ok(position('read').x < position('propose').x); assert.ok(position('propose').x < position('review').x); assert.ok(position('review').x < position('accept').x);
   const stale = audit.connectors.find(connector => connector.id === 'stale')!; assert.equal(stale.sourceSide, 'top'); assert.equal(stale.targetSide, 'top'); assert.ok(stale.labelPoint.y >= 20); assert.ok(stale.labelPoint.y < Math.min(...audit.nodes.map(node => node.bounds.top)));
   assert.deepEqual(audit.complaints, []);
+});
+test('qack facility regression uses side ports for its acyclic top row and keeps the long reads label clear after tidy', () => {
+  const node = (id: string, kind: 'component' | 'class' | 'service', label: string, x: number, y: number, stereotype: string) => ({ ...newNode(id, kind, { x, y }), label, stereotype, codeLinks: [{ path: 'evidence.ts', startLine: 1, endLine: 2 }] });
+  const diagram: Diagram = { id: 'facility', name: 'Facility: present and next', description: '', imports: [], nodes: [
+    node('view', 'component', 'Facility bay view', 50, 430, 'implemented'), node('resource', 'class', 'Project resources', 50, 50, 'implemented'), node('occupancy', 'class', 'Current occupancy', 490, 430, 'implemented'),
+    node('machine', 'component', 'Machine detail stub', 50, 810, 'prototype'), node('reservation', 'class', 'Reservations', 490, 50, 'planned'), node('lifecycle', 'component', 'Real machine lifecycle', 930, 50, 'planned'), node('ownership', 'service', 'Responsible teams', 930, 430, 'planned'),
+  ], edges: [
+    { id: 'e_view_resource', source: 'view', target: 'resource', kind: 'dependency', label: 'reads', sourceMultiplicity: '', targetMultiplicity: '' },
+    { id: 'e_view_occupancy', source: 'view', target: 'occupancy', kind: 'dependency', label: 'reads', sourceMultiplicity: '', targetMultiplicity: '' },
+    { id: 'e_view_machine', source: 'view', target: 'machine', kind: 'dependency', label: 'opens', sourceMultiplicity: '', targetMultiplicity: '' },
+    { id: 'e_reservation_resource', source: 'reservation', target: 'resource', kind: 'dependency', label: 'allocates', sourceMultiplicity: '', targetMultiplicity: '' },
+    { id: 'e_lifecycle_reservation', source: 'lifecycle', target: 'reservation', kind: 'dependency', label: 'projects activity', sourceMultiplicity: '', targetMultiplicity: '' },
+    { id: 'e_lifecycle_ownership', source: 'lifecycle', target: 'ownership', kind: 'dependency', label: 'routes work', sourceMultiplicity: '', targetMultiplicity: '' },
+  ] };
+  const saved = inspectDiagramGeometry(diagram); const route = (id: string) => saved.connectors.find(connector => connector.id === id)!;
+  assert.deepEqual({ source: route('e_lifecycle_reservation').sourceSide, target: route('e_lifecycle_reservation').targetSide }, { source: 'left', target: 'right' });
+  assert.deepEqual({ source: route('e_reservation_resource').sourceSide, target: route('e_reservation_resource').targetSide }, { source: 'left', target: 'right' });
+  assert.equal(route('e_lifecycle_reservation').returnOffset, undefined);
+  const tidy = inspectDiagramGeometry(tidyDiagram(diagram)); const reads = tidy.connectors.find(connector => connector.id === 'e_view_resource')!;
+  assert.equal(reads.detour, true); assert.deepEqual({ source: reads.sourceSide, target: reads.targetSide }, { source: 'top', target: 'bottom' }); assert.deepEqual(tidy.complaints, []);
 });

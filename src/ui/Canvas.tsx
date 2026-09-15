@@ -3,7 +3,7 @@ import { ReactFlow, Background, Controls, MiniMap, Handle, Position, ConnectionM
 import type { ArchDocument, Diagram, ArchEdge } from '../core/model';
 import type { Change } from '../core/diff';
 import { expansionBounds, expansionOffset, layoutSize } from '../core/layout';
-import { diagramConnectionRoutes, type Rect } from '../core/geometry';
+import { diagramConnectionRoutes, type ConnectorRoute, type Point, type Rect } from '../core/geometry';
 const EMPTY_CHANGES: Change[] = [];
 const icons: Partial<Record<string, string>> = { actor: '♙' };
 function Ports() { return <><Handle id="port-top" type="source" position={Position.Top}/><Handle id="port-right" type="source" position={Position.Right}/><Handle id="port-bottom" type="source" position={Position.Bottom}/><Handle id="port-left" type="source" position={Position.Left}/></>; }
@@ -67,8 +67,20 @@ function EmbedNode({ data, selected }: NodeProps) {
   </div>;
 }
 const nodeTypes = { uml: UmlNode, embed: EmbedNode };
+function routedPath(route: ConnectorRoute) {
+  const points = [route.segments[0].start, ...route.segments.map(segment => segment.end)]; const radius = 14;
+  const distance = (left: Point, right: Point) => Math.abs(right.x - left.x) + Math.abs(right.y - left.y);
+  const toward = (from: Point, to: Point, amount: number): Point => ({ x: from.x + Math.sign(to.x - from.x) * Math.min(amount, Math.abs(to.x - from.x)), y: from.y + Math.sign(to.y - from.y) * Math.min(amount, Math.abs(to.y - from.y)) });
+  let path = `M ${points[0].x} ${points[0].y}`;
+  for (let index = 1; index < points.length - 1; index++) {
+    const previous = points[index - 1]; const current = points[index]; const next = points[index + 1]; const corner = Math.min(radius, distance(previous, current) / 2, distance(current, next) / 2);
+    const before = toward(current, previous, corner); const after = toward(current, next, corner); path += ` L ${before.x} ${before.y} Q ${current.x} ${current.y} ${after.x} ${after.y}`;
+  }
+  return `${path} L ${points.at(-1)!.x} ${points.at(-1)!.y}`;
+}
 function UmlEdge(props: EdgeProps) {
-  const data = props.data as any; const [edgePath, x, y] = getSmoothStepPath({ ...props, borderRadius: 18, ...(data?.returnOffset ? { offset: data.returnOffset } : {}) });
+  const data = props.data as any; const generated = getSmoothStepPath({ ...props, borderRadius: 18, ...(data?.returnOffset ? { offset: data.returnOffset } : {}) }); const route = data?.route as ConnectorRoute | undefined;
+  const edgePath = route ? routedPath(route) : generated[0]; const x = route?.labelPoint.x ?? generated[1]; const y = route?.labelPoint.y ?? generated[2];
   const color = data?.change === 'added' ? '#087b64' : data?.change === 'removed' ? '#cd4658' : data?.change === 'modified' ? '#b47b16' : '#78909d';
   const kind = data?.kind as ArchEdge['kind'];
   const marker = kind === 'generalization' || kind === 'realization' ? 'triangle' : kind === 'dependency' ? 'openarrow' : 'arrow';
@@ -110,7 +122,7 @@ export default function Canvas({ document, diagram, onSelect, onMove, onConnect,
       const routes = diagramConnectionRoutes(d.edges, bounds);
       for (const e of d.edges) {
         const route = routes.get(e.id)!;
-        edges.push({ id: prefix + e.id, type: 'uml', source: prefix + e.source, target: prefix + e.target, sourceHandle: `port-${route.sourceSide}`, targetHandle: `port-${route.targetSide}`, label: e.label, data: { ...e, returnOffset: route.returnOffset, localId: e.id, nested: !!parentId, change: change(e.id, d.id) }, selectable: !parentId, selected: !parentId && focusId === e.id });
+        edges.push({ id: prefix + e.id, type: 'uml', source: prefix + e.source, target: prefix + e.target, sourceHandle: `port-${route.sourceSide}`, targetHandle: `port-${route.targetSide}`, label: e.label, data: { ...e, returnOffset: route.returnOffset, route, localId: e.id, nested: !!parentId, change: change(e.id, d.id) }, selectable: !parentId, selected: !parentId && focusId === e.id });
       }
     }
     collect(diagram); return { nodes, edges };
